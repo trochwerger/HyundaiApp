@@ -19,19 +19,7 @@ This backend is a small FastAPI wrapper around `hyundai_kia_connect_api` for a s
    pip install -r requirements.txt
    ```
 
-   On PowerShell use:
-
-   ```powershell
-   python -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   pip install -r requirements.txt
-   ```
-
 3. Run the helper script once. It reads your Bluelink credentials from `backend/.env`, so you do not need to type them into the terminal. When prompted, enter the OTP Hyundai sent to your email.
-
-   ```powershell
-   python backend\scripts\otp_login.py
-   ```
 
    ```bash
    python backend/scripts/otp_login.py

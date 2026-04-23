@@ -1,6 +1,6 @@
 # Session Breakdown — Hyundai Companion App
 
-Each session below is self-contained. Start a fresh Claude Code session, paste the prompt verbatim, and it will have enough context to proceed without seeing prior chats. The approved plan lives at `C:\Users\TomasRochwerger\.claude\plans\i-want-to-build-sparkling-zebra.md` — every session prompt references it.
+Each session below is self-contained. Start a fresh Claude Code session, paste the prompt verbatim, and it will have enough context to proceed without seeing prior chats. The approved plan lives at `~/.claude/plans/i-want-to-build-sparkling-zebra.md` — every session prompt references it.
 
 Sessions are ordered. Do not start a later one until the prior one's "Done when" checks pass.
 
@@ -12,11 +12,11 @@ Sessions are ordered. Do not start a later one until the prior one's "Done when"
 
 **Prompt to paste:**
 ```
-Read the approved plan at C:\Users\TomasRochwerger\.claude\plans\i-want-to-build-sparkling-zebra.md first — it has the full architecture and rationale.
+Read the approved plan at ~/.claude/plans/i-want-to-build-sparkling-zebra.md first — it has the full architecture and rationale.
 
 We are in Session 1 of a multi-session build. Scope for this session only: the Backend MVP (Phase 1 of the plan).
 
-Build under C:\Users\TomasRochwerger\Documents\Code\Personal Projects\HyundaiApp\backend\:
+Build under /Users/tomaspc/Documents/Code/Car/HyundaiApp/backend/:
 - FastAPI app (Python 3.11) with:
   - Bearer API-key auth middleware (constant-time compare, key from env).
   - GET /health
@@ -46,7 +46,7 @@ Done when: `docker compose up` starts the app, pytest passes, and you've documen
 
 **Prompt to paste:**
 ```
-Read C:\Users\TomasRochwerger\.claude\plans\i-want-to-build-sparkling-zebra.md and C:\Users\TomasRochwerger\Documents\Code\Personal Projects\HyundaiApp\backend\README.md for existing state.
+Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md and /Users/tomaspc/Documents/Code/Car/HyundaiApp/backend/README.md for existing state.
 
 Session 2 scope: extend the backend with the full command set and wire up Cloudflare Tunnel. No iOS work yet.
 
@@ -78,11 +78,11 @@ Done when: all new pytest cases pass, `docker compose up` brings up both fastapi
 
 **Prompt to paste:**
 ```
-Read C:\Users\TomasRochwerger\.claude\plans\i-want-to-build-sparkling-zebra.md for the iOS stack and module layout.
+Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md for the iOS stack and module layout.
 
-Session 3 scope: iOS MVP (Phase 2 of the plan). The backend already works (see C:\Users\TomasRochwerger\Documents\Code\Personal Projects\HyundaiApp\backend\). Do not change the backend in this session.
+Session 3 scope: iOS MVP (Phase 2 of the plan). The backend already works (see /Users/tomaspc/Documents/Code/Car/HyundaiApp/backend/). Do not change the backend in this session.
 
-Create the Xcode project at C:\Users\TomasRochwerger\Documents\Code\Personal Projects\HyundaiApp\HyundaiApp\:
+Create the Xcode project at /Users/tomaspc/Documents/Code/Car/HyundaiApp/HyundaiApp/:
 - iOS 17+, SwiftUI, Swift 5.9+, no third-party deps.
 - Targets: HyundaiApp (main), HyundaiAppTests (unit), HyundaiAppUITests (skip for now).
 - App Group configured (will be used by widgets later): group.com.tomas.hyundaiapp.
@@ -110,9 +110,9 @@ Done when: build succeeds for iOS 17 simulator, unit tests pass, and the dashboa
 
 **Prompt to paste:**
 ```
-Read C:\Users\TomasRochwerger\.claude\plans\i-want-to-build-sparkling-zebra.md.
+Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md.
 
-Session 4 scope: Phases 3 and 4 of the plan. Extend the existing iOS app at C:\Users\TomasRochwerger\Documents\Code\Personal Projects\HyundaiApp\HyundaiApp\. Do not touch the backend.
+Session 4 scope: Phases 3 and 4 of the plan. Extend the existing iOS app at /Users/tomaspc/Documents/Code/Car/HyundaiApp/HyundaiApp/. Do not touch the backend.
 
 Add:
 - Features/Controls: full command UI — remote start (with temp + duration + defrost toggle), remote stop, charge start, charge stop. Each shows loading state, success toast, and surfaces the backend's structured error on failure.
@@ -140,9 +140,9 @@ Done when: all commands work end-to-end, snapshots are persisting (visible in th
 
 **Prompt to paste:**
 ```
-Read C:\Users\TomasRochwerger\.claude\plans\i-want-to-build-sparkling-zebra.md.
+Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md.
 
-Session 5 scope: Phase 5 of the plan. Extend the iOS app at C:\Users\TomasRochwerger\Documents\Code\Personal Projects\HyundaiApp\HyundaiApp\. Read-only over the SwiftData store created in Session 4. Do not change the backend or the networking layer.
+Session 5 scope: Phase 5 of the plan. Extend the iOS app at /Users/tomaspc/Documents/Code/Car/HyundaiApp/HyundaiApp/. Read-only over the SwiftData store created in Session 4. Do not change the backend or the networking layer.
 
 Add Features/Analytics/ with Swift Charts:
 - EfficiencyTrendView — line chart of L/100km and kWh/100km per week over the last 90 days.
@@ -166,9 +166,9 @@ Done when: analytics screens render against the real accumulated data, Analytics
 
 **Prompt to paste:**
 ```
-Read C:\Users\TomasRochwerger\.claude\plans\i-want-to-build-sparkling-zebra.md, especially the "Widgets & Shortcuts" and "Polling strategy" sections.
+Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md, especially the "Widgets & Shortcuts" and "Polling strategy" sections.
 
-Session 6 scope: Phase 6. Add a HyundaiWidget extension target to the existing Xcode project at C:\Users\TomasRochwerger\Documents\Code\Personal Projects\HyundaiApp\HyundaiApp\.
+Session 6 scope: Phase 6. Add a HyundaiWidget extension target to the existing Xcode project at /Users/tomaspc/Documents/Code/Car/HyundaiApp/HyundaiApp/.
 
 Widgets must read from the App Group shared SwiftData store written by the main app. Widgets MUST NOT call /status?force=true — battery-safety rule from the plan. They read the latest StatusSnapshot and display "updated Xm ago".
 
@@ -197,9 +197,9 @@ Done when: widgets install on a physical device, show correct data from the shar
 
 **Prompt to paste:**
 ```
-Read C:\Users\TomasRochwerger\.claude\plans\i-want-to-build-sparkling-zebra.md.
+Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md.
 
-Session 7 scope: Phase 7. Extend the iOS app at C:\Users\TomasRochwerger\Documents\Code\Personal Projects\HyundaiApp\HyundaiApp\ with App Intents.
+Session 7 scope: Phase 7. Extend the iOS app at /Users/tomaspc/Documents/Code/Car/HyundaiApp/HyundaiApp/ with App Intents.
 
 Add Intents/VehicleIntents.swift with:
 - LockCarIntent, UnlockCarIntent — AppIntent performing the command via CarAPIClient; returns success/failure dialog.
@@ -231,9 +231,9 @@ Done when: "Hey Siri, lock the Tucson" (or your chosen phrase) works end-to-end 
 
 **Prompt to paste:**
 ```
-Read C:\Users\TomasRochwerger\.claude\plans\i-want-to-build-sparkling-zebra.md, especially the "Analytics engine" section.
+Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md, especially the "Analytics engine" section.
 
-Session 8 scope: Phase 8. Extend the iOS app at C:\Users\TomasRochwerger\Documents\Code\Personal Projects\HyundaiApp\HyundaiApp\. Requires weeks of Trip data accumulated from prior sessions.
+Session 8 scope: Phase 8. Extend the iOS app at /Users/tomaspc/Documents/Code/Car/HyundaiApp/HyundaiApp/. Requires weeks of Trip data accumulated from prior sessions.
 
 Add Features/Insights/:
 - A ModeSuggestionEngine (pure type, heavily unit-tested) that takes [Trip] and produces weekly insights:
