@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.claude/tmp/
+.DS_Store
+*.swp
+
+# Belt-and-suspenders: real secrets live under backend/
+backend/.env
+backend/cloudflared/*.json
+backend/cloudflared/config.yml

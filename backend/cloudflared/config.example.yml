@@ -1,0 +1,7 @@
+tunnel: <UUID>
+credentials-file: /etc/cloudflared/<UUID>.json
+
+ingress:
+  - hostname: <hostname>
+    service: http://backend:8000
+  - service: http_status:404
