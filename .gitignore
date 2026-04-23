@@ -11,3 +11,11 @@ __pycache__/
 backend/.env
 backend/cloudflared/*.json
 backend/cloudflared/config.yml
+
+# Xcode per-user state and build artifacts
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+*.xcscmblueprint
+*.xccheckout
