@@ -1,6 +1,9 @@
 import SwiftUI
+import SwiftData
 
 struct DashboardView: View {
+    @Environment(\.modelContext) private var modelContext
+    // The VM starts unbound so previews and tests can instantiate it without SwiftData.
     @StateObject private var vm: DashboardViewModel
 
     init(client: CarAPIClient = CarAPIClient()) {
@@ -65,6 +68,7 @@ struct DashboardView: View {
             await vm.refresh(force: false)
         }
         .task {
+            vm.configure(context: modelContext)
             await vm.refresh(force: false)
         }
     }
