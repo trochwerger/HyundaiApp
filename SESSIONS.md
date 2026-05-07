@@ -32,11 +32,11 @@ Status legend: **Done** ✅ / **Pending** ⏳ / **Blocked** 🚫
 
 ---
 
-## Session 4 — Full remote controls + SwiftData snapshots ⏳ Pending
+## Session 4 — Full remote controls + SwiftData snapshots ✅ Done
+
+**Status:** Done — final commit `ad58eec` ("feat: SwiftData snapshots, trip builder, debug screen") plus `5fd240d` ("feat: full remote command set in iOS (climate, charging)") on `task/session-4-swiftdata-snapshots`, FF-merged to `main`. All 6 commands wired (lock, unlock, climate start/stop, charge start/stop). Snapshots persist to a shared App Group SwiftData container (`group.com.tomas.hyundaiapp`). Deterministic `TripBuilder` covers ignition + odometer fallback; 13 unit tests pass alongside the 7 networking tests (`xcodebuild test` green on iPhone 15 / iOS 17.5). Debug screen lives behind a Settings toggle.
 
 **Goal:** All commands wired up in iOS; every `/status` read writes a `StatusSnapshot` to SwiftData. Trip detection stubbed.
-
-**Note:** Uncommitted work-in-progress for this session exists on `main` in the primary checkout (SwiftData models, TripBuilder + tests, debug screen, expanded controls). Decide whether to finish it on `main` or move to a task branch before continuing — see "Pre-flight" in the prompt.
 
 **Prompt to paste:**
 ```
