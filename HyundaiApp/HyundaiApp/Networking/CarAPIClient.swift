@@ -28,6 +28,7 @@ public final class CarAPIClient {
     private let baseURLProvider: () -> URL?
     private let tokenProvider: () -> String?
     private let decoder = JSONDecoder()
+    private let encoder = JSONEncoder()
 
     public init(
         session: URLSession = .shared,
@@ -74,6 +75,27 @@ public final class CarAPIClient {
         return try await send(request, decodeAs: CommandResponseDTO.self)
     }
 
+    public func startClimate(temp: Double?, defrost: Bool?, duration: Int?) async throws -> CommandResponseDTO {
+        let body = try encoder.encode(ClimateStartRequestDTO(temp: temp, defrost: defrost, duration: duration))
+        let request = try makeRequest(path: "/command/start", method: "POST", body: body, requiresAuth: true)
+        return try await send(request, decodeAs: CommandResponseDTO.self)
+    }
+
+    public func stopClimate() async throws -> CommandResponseDTO {
+        let request = try makeRequest(path: "/command/stop", method: "POST", requiresAuth: true)
+        return try await send(request, decodeAs: CommandResponseDTO.self)
+    }
+
+    public func chargeStart() async throws -> CommandResponseDTO {
+        let request = try makeRequest(path: "/command/charge-start", method: "POST", requiresAuth: true)
+        return try await send(request, decodeAs: CommandResponseDTO.self)
+    }
+
+    public func chargeStop() async throws -> CommandResponseDTO {
+        let request = try makeRequest(path: "/command/charge-stop", method: "POST", requiresAuth: true)
+        return try await send(request, decodeAs: CommandResponseDTO.self)
+    }
+
     public static func normalizedBaseURL(from rawValue: String) -> URL? {
         let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let url = URL(string: trimmed) else {
@@ -91,6 +113,7 @@ public final class CarAPIClient {
         path: String,
         method: String,
         queryItems: [URLQueryItem] = [],
+        body: Data? = nil,
         requiresAuth: Bool
     ) throws -> URLRequest {
         guard let baseURL = baseURLProvider() else {
@@ -116,6 +139,7 @@ public final class CarAPIClient {
 
         var request = URLRequest(url: finalURL)
         request.httpMethod = method
+        request.httpBody = body
 
         if requiresAuth {
             let token = tokenProvider()?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

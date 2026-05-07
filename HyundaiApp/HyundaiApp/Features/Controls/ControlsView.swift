@@ -9,20 +9,42 @@ struct ControlsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
-            commandButton(title: "Lock", command: "lock", tint: .blue) {
-                await vm.lock()
+        Form {
+            Section("Lock / Unlock") {
+                HStack(spacing: 12) {
+                    commandButton(title: "Lock", command: .lock, tint: .blue)
+                    commandButton(title: "Unlock", command: .unlock, tint: .orange)
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             }
 
-            commandButton(title: "Unlock", command: "unlock", tint: .orange) {
-                await vm.unlock()
+            Section("Remote Start") {
+                Stepper(value: $vm.startTemp, in: 17...27, step: 1) {
+                    Text("Cabin temp: \(Int(vm.startTemp)) °C")
+                }
+
+                Stepper(value: $vm.startDuration, in: 1...30, step: 1) {
+                    Text("Duration: \(vm.startDuration) min")
+                }
+
+                Toggle("Defrost", isOn: $vm.defrost)
+
+                commandButton(title: "Start", command: .startClimate, tint: .green)
             }
 
-            statusView
+            Section {
+                commandButton(title: "Stop climate", command: .stopClimate, tint: .red)
+            }
 
-            Spacer()
+            Section("Charging") {
+                commandButton(title: "Charge start", command: .chargeStart, tint: .teal)
+                commandButton(title: "Charge stop", command: .chargeStop, tint: .pink)
+            }
+
+            Section {
+                statusView
+            }
         }
-        .padding()
         .navigationTitle("Controls")
         .onChange(of: vm.lastResult) { _, newValue in
             dismissTask?.cancel()
@@ -40,18 +62,17 @@ struct ControlsView: View {
 
     private func commandButton(
         title: String,
-        command: String,
+        command: ControlsViewModel.Command,
         tint: Color,
-        action: @escaping () async -> Void
     ) -> some View {
         Button {
             Task {
-                await action()
+                await vm.perform(command)
             }
         } label: {
             HStack {
                 Spacer()
-                if vm.busyCommand == command {
+                if vm.busy == command {
                     ProgressView()
                         .tint(.white)
                 } else {
@@ -64,7 +85,7 @@ struct ControlsView: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(tint)
-        .disabled(vm.busyCommand != nil)
+        .disabled(vm.busy != nil)
     }
 
     @ViewBuilder

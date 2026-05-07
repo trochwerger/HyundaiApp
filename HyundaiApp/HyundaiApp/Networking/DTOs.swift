@@ -214,6 +214,24 @@ public struct CommandResponseDTO: Codable {
     public let command: String
 }
 
+public struct ClimateStartRequestDTO: Codable {
+    public let temp: Double?
+    public let defrost: Bool?
+    public let duration: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case temp
+        case defrost
+        case duration
+    }
+
+    public init(temp: Double? = nil, defrost: Bool? = nil, duration: Int? = nil) {
+        self.temp = temp
+        self.defrost = defrost
+        self.duration = duration
+    }
+}
+
 public struct HealthDTO: Codable {
     public let status: String
 }
