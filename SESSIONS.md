@@ -68,6 +68,88 @@ Done when: all commands work end-to-end, snapshots are persisting (visible in th
 
 ---
 
+## Session 4.5 — Backend snapshot collector + Oracle Cloud migration ⏳ Pending
+
+**Goal:** Backend polls Bluelink cached state every 15 min and stores snapshots to SQLite so data accumulates 24/7. Migrate hosting from local Mac to an Oracle Cloud Always Free ARM VM so the backend runs independently of the dev machine. Add a `/snapshots` endpoint so the iOS app can backfill its SwiftData store on launch.
+
+**Prompt to paste:**
+```
+Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md and /Users/tomaspc/Documents/Code/Car/HyundaiApp/CLAUDE.md before starting. Orchestrator mode — delegate code authoring to Codex via `codex-orchestrator`. Branch per the global git workflow.
+
+Session 4.5 scope: extend the backend at /Users/tomaspc/Documents/Code/Car/HyundaiApp/backend/ with automated snapshot collection and prepare for Oracle Cloud deployment. Do not change the iOS app in this session.
+
+Context: the backend currently holds vehicle state in memory only — no persistence. `force=false` calls `update_all_vehicles_with_cached_state()` which pulls Bluelink's server-side cache (does NOT wake the car — no 12V battery risk). `force=true` calls `force_refresh_all_vehicles_states()` which pings the car (battery risk, rate-limited). The collector must only use `force=false`.
+
+## Deliverables
+
+### 1. Snapshot collector (backend code)
+
+Add an asyncio background task that runs during the FastAPI lifespan:
+- Every N seconds (env var `SNAPSHOT_INTERVAL_SECONDS`, default 900 = 15 min), call `CarService.get_status(force=False)`.
+- Persist the full serialized status dict as a JSON row in a local SQLite database at a configurable path (env var `SNAPSHOT_DB_PATH`, default `/data/snapshots.db`).
+- Table schema: `id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT NOT NULL, vehicle_id TEXT, status_json TEXT NOT NULL, odometer_km REAL, fuel_percent INTEGER, ev_battery_percent INTEGER, is_locked INTEGER, is_charging INTEGER, engine_is_running INTEGER, latitude REAL, longitude REAL`.
+- Extract the indexed columns from the status dict for efficient querying; store the full JSON blob for forward compatibility.
+- Dedup: skip insert if the most recent row has the same `odometer_km` AND same `ev_battery_percent` AND same `fuel_percent` AND same `is_locked` — nothing changed, don't waste storage.
+- Log each collection cycle: "snapshot collected" or "snapshot skipped (no change)".
+- Graceful: if Bluelink is unreachable or token expired, log the error and retry next cycle. Never crash the collector loop.
+
+### 2. `/snapshots` endpoint
+
+- `GET /snapshots?from=<ISO datetime>&to=<ISO datetime>&limit=1000` — returns snapshots in ascending timestamp order. Requires Bearer auth (same API key as all other endpoints). Response: `{"snapshots": [{"timestamp": "...", "status": {...}, ...}]}` where each entry includes the indexed columns plus the full `status` object parsed from `status_json`.
+- `GET /snapshots/latest` — returns the single most recent snapshot. Useful for quick widget-style checks.
+- Pagination: respect `limit` (max 5000, default 1000). If more rows exist, include `"has_more": true` in the response.
+
+### 3. New env vars + config
+
+Add to `Settings` (pydantic-settings):
+- `SNAPSHOT_INTERVAL_SECONDS: int = 900`
+- `SNAPSHOT_DB_PATH: str = "/data/snapshots.db"` (Docker volume mount point)
+
+Add to `.env.example`.
+
+### 4. Docker changes
+
+- Add a named volume in `docker-compose.yml` for SQLite persistence: `snapshot-data:/data`.
+- Ensure the `appuser` in the Dockerfile has write access to `/data`.
+- Verify `docker compose down && docker compose up` preserves the SQLite file across restarts.
+
+### 5. Tests
+
+- Unit test the snapshot collector logic: mock `CarService.get_status`, verify rows are inserted, verify dedup skips identical state.
+- Unit test `/snapshots` endpoint: from/to filtering, limit, latest.
+- All existing tests must keep passing.
+
+### 6. Oracle Cloud migration guide
+
+Add a section to `backend/README.md` titled "Deploy to Oracle Cloud Always Free":
+- Step-by-step: create an OCI account, provision an ARM Ampere A1 instance (4 OCPU, 24GB RAM, Ubuntu), open port 22 in the security list.
+- SSH in, install Docker + Docker Compose.
+- Clone/copy the repo, set up `.env` with Bluelink credentials + API key.
+- Run the OTP login helper (same as local — see existing README section).
+- `docker compose up -d`.
+- Repoint the existing Cloudflare Tunnel to the VM's internal IP (update `config.yml` `url` to point to the VM, or create a new tunnel on the VM and update the DNS record).
+- Verify: `curl -H "Authorization: Bearer $API_KEY" https://<hostname>/status` returns data.
+- Note: the VM is always on, so the snapshot collector runs 24/7 and data accumulates automatically.
+- Note: the free tier is permanent (not a trial). 200GB boot volume, 4 ARM cores, 24GB RAM — massively overkill for this use case.
+
+### 7. .env.example update
+
+Add the two new env vars with comments explaining their purpose.
+
+## Constraints
+
+- The collector must ONLY call `force=false` — never `force=true`. This is the 12V battery safety rule.
+- SQLite is the right choice: single-user, single-writer, no external DB dependency, trivial Docker volume mount.
+- Do not add heavy dependencies. `aiosqlite` is acceptable if you want async SQLite; stdlib `sqlite3` in a `to_thread` wrapper is also fine.
+- Do not change the iOS app. iOS will consume `/snapshots` in a future session.
+
+Done when: `pytest` passes (including new snapshot collector + endpoint tests), `docker compose up` starts the collector loop (visible in logs), `/snapshots` returns data after a few cycles, README has the full OCI migration guide, and `.env.example` is updated.
+```
+
+**Done when:** backend is collecting snapshots every 15 min, `/snapshots` returns accumulated data, README documents the OCI migration path, all tests pass.
+
+---
+
 ## Session 5 — Analytics UI (Swift Charts) ⏳ Pending
 
 **Goal:** Efficiency trends, gas savings, mode-usage breakdown. Pure read-only over existing SwiftData.
