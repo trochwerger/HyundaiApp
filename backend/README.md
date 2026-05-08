@@ -112,6 +112,83 @@ cloudflared tunnel --url http://localhost:8000
    curl -H "Authorization: Bearer $API_KEY" https://<hostname>/status
    ```
 
+## Deploy to Oracle Cloud Always Free
+
+Oracle Cloud's Always Free tier includes an ARM Ampere A1 instance (up to 4 OCPU / 24 GB RAM) that runs forever — no 30-day trial, no credit card charges as long as you stay within free-tier resources. Running the backend here means the snapshot collector runs 24/7 and data accumulates while your Mac is off.
+
+1. Create an account at https://signup.cloud.oracle.com. A credit card is required for identity verification, but Always Free resources never charge.
+2. From the OCI console, provision a Compute instance:
+   - Shape: **Ampere A1 (ARM)** — choose 2–4 OCPUs and 12–24 GB memory (all within Always Free).
+   - Image: **Canonical Ubuntu 22.04** (or 24.04).
+   - Boot volume: 50–200 GB (200 GB total free across all VMs in your tenancy).
+   - SSH: paste your public key.
+3. In the VCN's default security list, ensure ingress is open on port 22 (SSH). Cloudflare Tunnel handles inbound 80/443, so you do not need to open any other ports.
+4. SSH into the VM and install Docker + the Compose plugin:
+
+   ```bash
+   sudo apt update && sudo apt -y upgrade
+   sudo apt -y install ca-certificates curl gnupg
+   sudo install -m 0755 -d /etc/apt/keyrings
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+   sudo chmod a+r /etc/apt/keyrings/docker.gpg
+   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+     | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+   sudo apt update
+   sudo apt -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+   sudo usermod -aG docker $USER
+   newgrp docker
+   ```
+
+5. Clone the repo (or copy via `scp`) and create your `.env`:
+
+   ```bash
+   git clone <your-repo> hyundai && cd hyundai/backend
+   cp .env.example .env
+   # edit .env — fill BLUELINK_*, API_KEY; tune SNAPSHOT_INTERVAL_SECONDS if desired.
+   ```
+
+6. Run the OTP login helper from the VM so the upstream library's `Deviceid` matches the runtime that will own the token (same caveat as the local setup):
+
+   ```bash
+   python3 -m venv .venv && . .venv/bin/activate
+   pip install -r requirements.txt
+   python scripts/otp_login.py
+   ```
+
+7. Start the stack:
+
+   ```bash
+   docker compose up -d --build
+   docker compose logs -f backend
+   ```
+
+   Within `SNAPSHOT_INTERVAL_SECONDS` you should see `snapshot collected` (or `snapshot skipped (no change)`) log lines.
+
+8. Repoint Cloudflare Tunnel to the VM. Either move the named tunnel by copying `backend/cloudflared/<UUID>.json` and `config.yml` over and starting the sidecar there, or create a fresh tunnel on the VM and update the DNS record:
+
+   ```bash
+   cloudflared tunnel create hyundai-backend-oci
+   cloudflared tunnel route dns hyundai-backend-oci car.<your-domain>
+   ```
+
+9. Smoke-test from anywhere:
+
+   ```bash
+   curl -H "Authorization: Bearer $API_KEY" https://car.<your-domain>/health
+   curl -H "Authorization: Bearer $API_KEY" https://car.<your-domain>/snapshots/latest
+   ```
+
+Notes:
+
+- The VM is always on, so the snapshot collector accumulates data 24/7 — analytics sessions later can query `/snapshots` for trip-detection windows that span days.
+- Always Free is permanent (not a 30-day trial). 4 ARM cores, 24 GB RAM, 200 GB block storage — comfortable headroom for this workload.
+- The named Docker volume (`snapshot-data`) survives `docker compose down`. Only `docker volume rm hyundai_snapshot-data` (or `<projectname>_snapshot-data`) deletes the SQLite file. Take periodic backups, e.g.:
+
+  ```bash
+  docker run --rm -v hyundai_snapshot-data:/data -v "$PWD":/backup alpine \
+    tar czf /backup/snapshots.tgz /data
+  ```
+
 ## Security Notes
 
 - Never commit `.env`.

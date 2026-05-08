@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     force_refresh_min_interval_seconds: int = 600
     command_rate_limit_per_minute: int = 6
     command_rate_limit_window_seconds: int = 60
+    snapshot_interval_seconds: int = 900
+    snapshot_db_path: str = "/data/snapshots.db"
 
     if SettingsConfigDict is not None:
         model_config = SettingsConfigDict(

@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN useradd --create-home --shell /usr/sbin/nologin appuser
+RUN mkdir -p /data && chown appuser:appuser /data
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt

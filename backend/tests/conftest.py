@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import datetime as dt
 import os
+import pathlib
+import tempfile
 
 import pytest
 from fastapi import HTTPException
@@ -16,6 +18,11 @@ os.environ.setdefault("BRAND", "hyundai")
 os.environ.setdefault("FORCE_REFRESH_MIN_INTERVAL_SECONDS", "600")
 os.environ.setdefault("COMMAND_RATE_LIMIT_PER_MINUTE", "2")
 os.environ.setdefault("COMMAND_RATE_LIMIT_WINDOW_SECONDS", "60")
+os.environ.setdefault("SNAPSHOT_INTERVAL_SECONDS", "900")
+os.environ.setdefault(
+    "SNAPSHOT_DB_PATH",
+    str(pathlib.Path(tempfile.gettempdir()) / "hyundaiapp-test-snapshots.db"),
+)
 
 from app.config import Settings
 from app.main import create_app
@@ -129,7 +136,7 @@ class FakeCarService:
 
 
 @pytest.fixture()
-def test_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
+def test_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> Settings:
     monkeypatch.setenv("BLUELINK_EMAIL", "driver@example.com")
     monkeypatch.setenv("BLUELINK_PASSWORD", "password")
     monkeypatch.setenv("BLUELINK_PIN", "1234")
@@ -139,6 +146,8 @@ def test_settings(monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("FORCE_REFRESH_MIN_INTERVAL_SECONDS", "600")
     monkeypatch.setenv("COMMAND_RATE_LIMIT_PER_MINUTE", "2")
     monkeypatch.setenv("COMMAND_RATE_LIMIT_WINDOW_SECONDS", "60")
+    monkeypatch.setenv("SNAPSHOT_INTERVAL_SECONDS", "900")
+    monkeypatch.setenv("SNAPSHOT_DB_PATH", str(tmp_path / "snapshots.db"))
     return Settings()
 
 
