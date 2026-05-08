@@ -68,7 +68,7 @@ Done when: all commands work end-to-end, snapshots are persisting (visible in th
 
 ---
 
-## Session 4.5 — Backend snapshot collector + Oracle Cloud migration ⏳ Pending
+## Session 4.5 — Backend snapshot collector + Oracle Cloud migration ✅ Done
 
 **Goal:** Backend polls Bluelink cached state every 15 min and stores snapshots to SQLite so data accumulates 24/7. Migrate hosting from local Mac to an Oracle Cloud Always Free ARM VM so the backend runs independently of the dev machine. Add a `/snapshots` endpoint so the iOS app can backfill its SwiftData store on launch.
 
