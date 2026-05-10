@@ -48,6 +48,17 @@ class CarService:
         self._vehicle_manager.update_all_vehicles_with_cached_state()
         self._vehicle_id = self._select_vehicle_id()
 
+    def force_reauth(self) -> None:
+        """Drop the cached session and log in again from configured credentials."""
+
+        logger.info("forcing reauth")
+        self._vehicle_manager.token = None
+        self._vehicle_manager.check_and_refresh_token()
+        self._vehicle_manager.update_all_vehicles_with_cached_state()
+        self._vehicle_id = None
+        self._vehicle_id = self._select_vehicle_id()
+        logger.info("reauth complete")
+
     def get_vehicle_metadata(self) -> dict[str, Any]:
         vehicle = self._get_vehicle()
         return self._prune_none(

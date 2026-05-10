@@ -208,3 +208,155 @@ async def test_collector_loop_inserts_one_cached_status(
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
+
+
+async def test_collector_loop_backs_off_on_consecutive_failures(
+    snapshot_store: SnapshotStore,
+) -> None:
+    class FailingCollectorCarService:
+        def get_status(self, force: bool = False) -> dict:
+            assert force is False
+            raise RuntimeError("upstream wedged")
+
+    sleeps: list[float] = []
+
+    async def recording_sleep(duration: float) -> None:
+        sleeps.append(duration)
+        if len(sleeps) >= 5:
+            raise asyncio.CancelledError
+
+    task = asyncio.create_task(
+        run_collector_loop(
+            snapshot_store,
+            FailingCollectorCarService(),
+            interval_seconds=10,
+            max_consecutive_failures_before_reauth=999,
+            max_backoff_seconds=1000,
+            sleep=recording_sleep,
+        )
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert sleeps == [10, 20, 40, 80, 160]
+
+
+async def test_collector_loop_caps_backoff_at_max(
+    snapshot_store: SnapshotStore,
+) -> None:
+    class FailingCollectorCarService:
+        def get_status(self, force: bool = False) -> dict:
+            assert force is False
+            raise RuntimeError("upstream wedged")
+
+    sleeps: list[float] = []
+
+    async def recording_sleep(duration: float) -> None:
+        sleeps.append(duration)
+        if len(sleeps) >= 5:
+            raise asyncio.CancelledError
+
+    task = asyncio.create_task(
+        run_collector_loop(
+            snapshot_store,
+            FailingCollectorCarService(),
+            interval_seconds=100,
+            max_consecutive_failures_before_reauth=999,
+            max_backoff_seconds=300,
+            sleep=recording_sleep,
+        )
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert sleeps == [100, 200, 300, 300, 300]
+
+
+async def test_collector_loop_triggers_reauth_after_threshold_and_resets_counter(
+    snapshot_store: SnapshotStore,
+) -> None:
+    class ReauthingCollectorCarService:
+        def __init__(self) -> None:
+            self.get_status_calls = 0
+            self.force_reauth_calls = 0
+
+        def get_status(self, force: bool = False) -> dict:
+            assert force is False
+            self.get_status_calls += 1
+            if self.get_status_calls <= 3:
+                raise RuntimeError("upstream wedged")
+            return sample_status()
+
+        def force_reauth(self) -> None:
+            self.force_reauth_calls += 1
+
+    car_service = ReauthingCollectorCarService()
+    sleeps: list[float] = []
+
+    async def recording_sleep(duration: float) -> None:
+        sleeps.append(duration)
+        if len(sleeps) >= 4:
+            raise asyncio.CancelledError
+
+    task = asyncio.create_task(
+        run_collector_loop(
+            snapshot_store,
+            car_service,
+            interval_seconds=10,
+            max_consecutive_failures_before_reauth=3,
+            max_backoff_seconds=1000,
+            sleep=recording_sleep,
+        )
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    latest = await snapshot_store.latest()
+    assert car_service.force_reauth_calls == 1
+    assert sleeps == [10, 20, 10, 10]
+    assert latest is not None
+    assert latest["vehicle_id"] == "vehicle-1"
+
+
+async def test_collector_loop_continues_with_backoff_when_reauth_itself_fails(
+    snapshot_store: SnapshotStore,
+) -> None:
+    class FailedReauthCollectorCarService:
+        def __init__(self) -> None:
+            self.force_reauth_calls = 0
+
+        def get_status(self, force: bool = False) -> dict:
+            assert force is False
+            raise RuntimeError("upstream wedged")
+
+        def force_reauth(self) -> None:
+            self.force_reauth_calls += 1
+            raise RuntimeError("reauth failed")
+
+    car_service = FailedReauthCollectorCarService()
+    sleeps: list[float] = []
+
+    async def recording_sleep(duration: float) -> None:
+        sleeps.append(duration)
+        if len(sleeps) >= 4:
+            raise asyncio.CancelledError
+
+    task = asyncio.create_task(
+        run_collector_loop(
+            snapshot_store,
+            car_service,
+            interval_seconds=10,
+            max_consecutive_failures_before_reauth=2,
+            max_backoff_seconds=1000,
+            sleep=recording_sleep,
+        )
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert car_service.force_reauth_calls == 3
+    assert sleeps == [10, 20, 40, 80]

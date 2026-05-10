@@ -7,6 +7,7 @@ import json
 import logging
 import sqlite3
 import threading
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -278,17 +279,51 @@ async def run_collector_loop(
     car_service: Any,
     *,
     interval_seconds: int,
+    max_consecutive_failures_before_reauth: int = 3,
+    max_backoff_seconds: int = 1800,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> None:
+    consecutive_failures = 0
+
     while True:
         try:
             status = await asyncio.to_thread(car_service.get_status, False)
             vehicle_id = status.get("id") if isinstance(status, dict) else None
             inserted = await store.insert(status, vehicle_id=vehicle_id)
+            consecutive_failures = 0
+            next_sleep = interval_seconds
             logger.info(
                 "snapshot collected" if inserted else "snapshot skipped (no change)"
             )
         except asyncio.CancelledError:
             raise
         except Exception:
-            logger.exception("snapshot collection failed; will retry next cycle")
-        await asyncio.sleep(interval_seconds)
+            consecutive_failures += 1
+            logger.exception(
+                "snapshot collection failed (consecutive=%d); will retry",
+                consecutive_failures,
+            )
+            if consecutive_failures >= max_consecutive_failures_before_reauth:
+                reauth = getattr(car_service, "force_reauth", None)
+                if callable(reauth):
+                    try:
+                        await asyncio.to_thread(reauth)
+                        logger.info(
+                            "collector forced reauth after %d consecutive failures",
+                            consecutive_failures,
+                        )
+                        consecutive_failures = 0
+                    except Exception:
+                        logger.exception(
+                            "collector reauth failed; continuing with backoff"
+                        )
+
+            if consecutive_failures == 0:
+                next_sleep = interval_seconds
+            else:
+                next_sleep = min(
+                    interval_seconds * (2 ** (consecutive_failures - 1)),
+                    max_backoff_seconds,
+                )
+
+        await sleep(next_sleep)

@@ -65,6 +65,10 @@ def create_app(
                     store,
                     app.state.car,
                     interval_seconds=resolved_settings.snapshot_interval_seconds,
+                    max_consecutive_failures_before_reauth=(
+                        resolved_settings.snapshot_max_consecutive_failures_before_reauth
+                    ),
+                    max_backoff_seconds=resolved_settings.snapshot_max_backoff_seconds,
                 )
             )
         app.state.snapshot_task = task

@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     command_rate_limit_per_minute: int = 6
     command_rate_limit_window_seconds: int = 60
     snapshot_interval_seconds: int = 900
+    snapshot_max_consecutive_failures_before_reauth: int = 3
+    snapshot_max_backoff_seconds: int = 1800
     snapshot_db_path: str = "/data/snapshots.db"
 
     if SettingsConfigDict is not None:
