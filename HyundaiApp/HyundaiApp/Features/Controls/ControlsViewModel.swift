@@ -27,6 +27,23 @@ final class ControlsViewModel: ObservableObject {
             }
         }
 
+        var inFlightMessage: String {
+            switch self {
+            case .lock:
+                return "Locking…"
+            case .unlock:
+                return "Unlocking…"
+            case .startClimate:
+                return "Sending remote start…"
+            case .stopClimate:
+                return "Stopping climate…"
+            case .chargeStart:
+                return "Sending charge start…"
+            case .chargeStop:
+                return "Sending charge stop…"
+            }
+        }
+
         var command: String {
             switch self {
             case .lock:
