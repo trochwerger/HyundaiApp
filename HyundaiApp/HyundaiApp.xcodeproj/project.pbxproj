@@ -201,14 +201,6 @@
 			path = HyundaiAppTests;
 			sourceTree = "<group>";
 		};
-		A10000000000000000000053 /* Debug */ = {
-			isa = PBXGroup;
-			children = (
-				A10000000000000000000051 /* DebugView.swift */,
-			);
-			path = Debug;
-			sourceTree = "<group>";
-		};
 		A10000000000000000000032 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -216,6 +208,14 @@
 				A10000000000000000000012 /* HyundaiAppTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000053 /* Debug */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000051 /* DebugView.swift */,
+			);
+			path = Debug;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -382,7 +382,7 @@
 				CODE_SIGN_ENTITLEMENTS = HyundaiApp/HyundaiApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = P5WCWGKZYQ;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = HyundaiApp/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -410,7 +410,7 @@
 				CODE_SIGN_ENTITLEMENTS = HyundaiApp/HyundaiApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = P5WCWGKZYQ;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = HyundaiApp/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
