@@ -13,6 +13,7 @@ from typing import Any
 from fastapi import HTTPException, status
 from hyundai_kia_connect_api import ClimateRequestOptions, VehicleManager
 from hyundai_kia_connect_api.const import BRANDS, REGIONS
+from hyundai_kia_connect_api.exceptions import AuthenticationError
 
 from .config import Settings
 
@@ -59,6 +60,14 @@ class CarService:
         self._vehicle_id = self._select_vehicle_id()
         logger.info("reauth complete")
 
+    def _call_with_reauth(self, fn: Any, *args: Any, **kwargs: Any) -> Any:
+        try:
+            return fn(*args, **kwargs)
+        except AuthenticationError:
+            logger.warning("upstream auth expired; forcing reauth and retrying")
+            self.force_reauth()
+            return fn(*args, **kwargs)
+
     def get_vehicle_metadata(self) -> dict[str, Any]:
         vehicle = self._get_vehicle()
         return self._prune_none(
@@ -88,10 +97,14 @@ class CarService:
                 )
 
             logger.info("force refresh: allowed")
-            self._vehicle_manager.force_refresh_all_vehicles_states()
+            self._call_with_reauth(
+                self._vehicle_manager.force_refresh_all_vehicles_states
+            )
             self._last_force_refresh_at = dt.datetime.now(timezone.utc)
         else:
-            self._vehicle_manager.update_all_vehicles_with_cached_state()
+            self._call_with_reauth(
+                self._vehicle_manager.update_all_vehicles_with_cached_state
+            )
 
         return self._serialize_vehicle(self._get_vehicle())
 
