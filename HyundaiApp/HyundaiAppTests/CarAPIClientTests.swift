@@ -59,6 +59,41 @@ final class CarAPIClientTests: XCTestCase {
         XCTAssertEqual(status.lastUpdatedAt, "2026-04-23T14:05:12+00:00")
     }
 
+    func testStatusDecodesStringBackedTemperatureAndLocationDoubles() async throws {
+        MockURLProtocol.handler = { request in
+            XCTAssertEqual(request.url?.path, "/status")
+            XCTAssertEqual(request.url?.query, "force=false")
+
+            let payload = """
+            {
+              "id": "x",
+              "air_temperature": "22.0",
+              "outside_temperature": "18.5",
+              "location": {
+                "latitude": "45.5",
+                "longitude": "-73.6",
+                "last_updated_at": "2026-05-10T19:15:50+00:00"
+              }
+            }
+            """
+
+            return (
+                HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                Data(payload.utf8)
+            )
+        }
+
+        let client = makeClient()
+        let status = try await client.status(force: false)
+
+        XCTAssertEqual(status.id, "x")
+        XCTAssertEqual(status.airTemperature, 22.0)
+        XCTAssertEqual(status.outsideTemperature, 18.5)
+        XCTAssertEqual(status.location?.latitude, 45.5)
+        XCTAssertEqual(status.location?.longitude, -73.6)
+        XCTAssertEqual(status.location?.lastUpdatedAt, "2026-05-10T19:15:50+00:00")
+    }
+
     func testLockSendsBearerHeaderAndPostsToCorrectPath() async throws {
         MockURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.path, "/command/lock")

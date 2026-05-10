@@ -20,6 +20,18 @@ public struct VehicleDTO: Codable {
     }
 }
 
+private func decodeFlexibleDouble<K: CodingKey>(_ container: KeyedDecodingContainer<K>, forKey key: K) throws -> Double? {
+    if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
+        return value
+    }
+
+    if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
+        return Double(stringValue)
+    }
+
+    return nil
+}
+
 public struct StatusDTO: Codable {
     public struct LocationDTO: Codable {
         public let latitude: Double?
@@ -30,6 +42,14 @@ public struct StatusDTO: Codable {
             case latitude
             case longitude
             case lastUpdatedAt = "last_updated_at"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+
+            latitude = try decodeFlexibleDouble(container, forKey: .latitude)
+            longitude = try decodeFlexibleDouble(container, forKey: .longitude)
+            lastUpdatedAt = try container.decodeIfPresent(String.self, forKey: .lastUpdatedAt)
         }
     }
 
@@ -163,9 +183,9 @@ public struct StatusDTO: Codable {
         fuelLevel = try container.decodeIfPresent(Int.self, forKey: .fuelLevel)
         isLocked = try container.decodeIfPresent(Bool.self, forKey: .isLocked)
         engineIsRunning = try container.decodeIfPresent(Bool.self, forKey: .engineIsRunning)
-        airTemperature = try container.decodeIfPresent(Double.self, forKey: .airTemperature)
+        airTemperature = try decodeFlexibleDouble(container, forKey: .airTemperature)
         airTemperatureUnit = try container.decodeIfPresent(String.self, forKey: .airTemperatureUnit)
-        outsideTemperature = try container.decodeIfPresent(Double.self, forKey: .outsideTemperature)
+        outsideTemperature = try decodeFlexibleDouble(container, forKey: .outsideTemperature)
         outsideTemperatureUnit = try container.decodeIfPresent(String.self, forKey: .outsideTemperatureUnit)
         location = try container.decodeIfPresent(LocationDTO.self, forKey: .location)
 
