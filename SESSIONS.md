@@ -1,14 +1,14 @@
 # Session Breakdown — Hyundai Companion App
 
-Each session below is self-contained. Start a fresh Claude Code session, paste the prompt verbatim, and it will have enough context to proceed without seeing prior chats. The approved plan lives at `~/.claude/plans/i-want-to-build-sparkling-zebra.md` — every session prompt references it.
+Each pending session below is self-contained. Start a fresh Codex or Claude Code session from the repository root and use the prompt as the task brief. Read `AGENTS.md` (Codex) or `CLAUDE.md` (Claude Code) first; both carry the same architecture, workflow, verification, and vehicle-safety rules.
 
 Sessions are ordered. Do not start a later one until the prior one's "Done when" checks pass.
 
-## How sessions run now (orchestrator mode)
+## How to run sessions
 
-The global `~/.claude/CLAUDE.md` puts Claude Code in **orchestrator mode**: Claude does not author code directly — all code edits are delegated to Codex CLI via the `codex-orchestrator` skill. Each session prompt below is written for the orchestrator to read and act on; the orchestrator decides whether to invoke `session-splitter` (parallel sub-units) or delegate the whole session to Codex in one or more passes, then verifies and commits per the global git workflow.
+The active assistant authors the work directly and may use its native planning or delegation tools when useful. Codex and Claude Code are both valid executors; neither is required to invoke the other. Before editing, check repository state and work on a task branch. Preserve session scope, run the stated checks, inspect the diff, and commit only verified work per the global Git workflow.
 
-To run sessions sequentially without supervision, use the `session-runner` skill — it consumes this file, picks the first **Pending** session, dispatches a subagent, and stops between sessions for review.
+If the active runtime provides a compatible session runner, it may consume this file and select the first **Pending** session. Otherwise, run that session manually from its prompt. Stop between sessions for review unless the user explicitly requests uninterrupted execution.
 
 Status legend: **Done** ✅ / **Pending** ⏳ / **Blocked** 🚫
 
@@ -40,11 +40,11 @@ Status legend: **Done** ✅ / **Pending** ⏳ / **Blocked** 🚫
 
 **Prompt to paste:**
 ```
-Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md and /Users/tomaspc/Documents/Code/Car/HyundaiApp/CLAUDE.md before starting. The repo is in orchestrator mode — you (Claude) coordinate and verify; all code authoring is delegated to Codex via the `codex-orchestrator` skill.
+Read AGENTS.md (Codex) or CLAUDE.md (Claude Code), then inspect the relevant implementation before starting. Author the requested changes directly; use native delegation only if it helps.
 
 Pre-flight: run `git status` in /Users/tomaspc/Documents/Code/Car/HyundaiApp. There is in-progress Session 4 work uncommitted on `main` (SwiftData models, TripBuilder + tests, expanded controls, debug screen). Per the global git workflow: move that work onto a task branch (e.g. `task/session-4-swiftdata-snapshots`) before continuing — do not commit Session 4 work directly to `main`. Stash → branch → pop, or `git switch -c <branch>` if the working tree is unstaged.
 
-Session 4 scope: Phases 3 and 4 of the plan. Extend the existing iOS app at /Users/tomaspc/Documents/Code/Car/HyundaiApp/HyundaiApp/. Do not touch the backend.
+Session 4 scope: full remote controls, SwiftData snapshots, and deterministic trip detection. Extend the existing iOS app under `HyundaiApp/`. Do not touch the backend.
 
 Required deliverables (audit the in-progress work first; only fill gaps):
 - Features/Controls: full command UI — remote start (with temp + duration + defrost toggle), remote stop, charge start, charge stop. Each shows loading state, success toast, and surfaces the backend's structured error on failure.
@@ -59,7 +59,7 @@ Required deliverables (audit the in-progress work first; only fill gaps):
 
 Out of scope: charts/analytics UI, widgets, App Intents. Those are later sessions.
 
-If audit shows the in-progress work is mostly done, delegate a "finish + verify" pass to Codex. If gaps are independent (e.g. command UI vs. trip-builder polishing), invoke `session-splitter`. Verify with `xcodebuild test` against the iOS 17 simulator before committing.
+If audit shows the in-progress work is mostly done, perform a focused finish-and-verify pass. If gaps are independent (e.g. command UI vs. trip-builder polishing), they may be split using the active runtime's native tools. Verify with `xcodebuild test` against the iOS 17 simulator before committing.
 
 Done when: all commands work end-to-end, snapshots are persisting (visible in the debug screen), trip builder unit tests pass, and `xcodebuild test` is green.
 ```
@@ -74,7 +74,7 @@ Done when: all commands work end-to-end, snapshots are persisting (visible in th
 
 **Prompt to paste:**
 ```
-Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md and /Users/tomaspc/Documents/Code/Car/HyundaiApp/CLAUDE.md before starting. Orchestrator mode — delegate code authoring to Codex via `codex-orchestrator`. Branch per the global git workflow.
+Read AGENTS.md (Codex) or CLAUDE.md (Claude Code), then inspect the backend before starting. Author the requested changes directly and branch per the global Git workflow.
 
 Session 4.5 scope: extend the backend at /Users/tomaspc/Documents/Code/Car/HyundaiApp/backend/ with automated snapshot collection and prepare for Oracle Cloud deployment. Do not change the iOS app in this session.
 
@@ -156,9 +156,9 @@ Done when: `pytest` passes (including new snapshot collector + endpoint tests), 
 
 **Prompt to paste:**
 ```
-Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md and /Users/tomaspc/Documents/Code/Car/HyundaiApp/CLAUDE.md before starting. Orchestrator mode — delegate code authoring to Codex via `codex-orchestrator`. Branch per the global git workflow.
+Read AGENTS.md (Codex) or CLAUDE.md (Claude Code), then inspect the iOS models and persistence layer before starting. Author the requested changes directly and branch per the global Git workflow.
 
-Session 5 scope: Phase 5 of the plan. Extend the iOS app at /Users/tomaspc/Documents/Code/Car/HyundaiApp/HyundaiApp/. Read-only over the SwiftData store created in Session 4. Do not change the backend or the networking layer.
+Session 5 scope: analytics UI and its pure computation engine. Extend the iOS app under `HyundaiApp/`. Read-only over the SwiftData store created in Session 4. Do not change the backend or the networking layer.
 
 Add Features/Analytics/ with Swift Charts:
 - EfficiencyTrendView — line chart of L/100km and kWh/100km per week over the last 90 days.
@@ -169,7 +169,7 @@ Add Features/Analytics/ with Swift Charts:
 
 Out of scope: widgets, App Intents, mode-suggestion engine. Those are later sessions.
 
-The AnalyticsEngine + tests are independent of the chart views — consider `session-splitter` if both can land in parallel. Verify with `xcodebuild test`.
+The AnalyticsEngine + tests are independent of the chart views and may be split with the active runtime's native tools if both can land safely in parallel. Verify with `xcodebuild test`.
 
 Done when: analytics screens render against the real accumulated data, AnalyticsEngine unit tests pass, gas price edits in Settings update the charts live.
 ```
@@ -184,11 +184,11 @@ Done when: analytics screens render against the real accumulated data, Analytics
 
 **Prompt to paste:**
 ```
-Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md, especially the "Widgets & Shortcuts" and "Polling strategy" sections, plus /Users/tomaspc/Documents/Code/Car/HyundaiApp/CLAUDE.md. Orchestrator mode — delegate code authoring to Codex via `codex-orchestrator`. Branch per the global git workflow.
+Read AGENTS.md (Codex) or CLAUDE.md (Claude Code), especially the vehicle and battery safety rules, then inspect the shared SwiftData setup. Author the requested changes directly and branch per the global Git workflow.
 
-Session 6 scope: Phase 6. Add a HyundaiWidget extension target to the existing Xcode project at /Users/tomaspc/Documents/Code/Car/HyundaiApp/HyundaiApp/.
+Session 6 scope: widgets. Add a HyundaiWidget extension target to the existing Xcode project under `HyundaiApp/`.
 
-Widgets must read from the App Group shared SwiftData store written by the main app. Widgets MUST NOT call /status?force=true — battery-safety rule from the plan. They read the latest StatusSnapshot and display "updated Xm ago".
+Widgets must read from the App Group shared SwiftData store written by the main app. Widgets MUST NOT call `/status?force=true` under the project battery-safety rules. They read the latest StatusSnapshot and display "updated Xm ago".
 
 Add widget families:
 - accessoryCircular (Lock Screen): EV battery % ring.
@@ -217,9 +217,9 @@ Done when: widgets install on a physical device, show correct data from the shar
 
 **Prompt to paste:**
 ```
-Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md and /Users/tomaspc/Documents/Code/Car/HyundaiApp/CLAUDE.md. Orchestrator mode — delegate code authoring to Codex via `codex-orchestrator`. Branch per the global git workflow.
+Read AGENTS.md (Codex) or CLAUDE.md (Claude Code), then inspect the existing networking and shared SwiftData code. Author the requested changes directly and branch per the global Git workflow.
 
-Session 7 scope: Phase 7. Extend the iOS app at /Users/tomaspc/Documents/Code/Car/HyundaiApp/HyundaiApp/ with App Intents.
+Session 7 scope: App Intents and Siri Shortcuts. Extend the iOS app under `HyundaiApp/` with App Intents.
 
 Add Intents/VehicleIntents.swift with:
 - LockCarIntent, UnlockCarIntent — AppIntent performing the command via CarAPIClient; returns success/failure dialog.
@@ -251,9 +251,9 @@ Done when: "Hey Siri, lock the Tucson" (or your chosen phrase) works end-to-end 
 
 **Prompt to paste:**
 ```
-Read ~/.claude/plans/i-want-to-build-sparkling-zebra.md, especially the "Analytics engine" section, plus /Users/tomaspc/Documents/Code/Car/HyundaiApp/CLAUDE.md. Orchestrator mode — delegate code authoring to Codex via `codex-orchestrator`. Branch per the global git workflow.
+Read AGENTS.md (Codex) or CLAUDE.md (Claude Code), then inspect the analytics and Trip models produced by earlier sessions. Author the requested changes directly and branch per the global Git workflow.
 
-Session 8 scope: Phase 8. Extend the iOS app at /Users/tomaspc/Documents/Code/Car/HyundaiApp/HyundaiApp/. Requires weeks of Trip data accumulated from prior sessions.
+Session 8 scope: the mode-suggestion engine and final polish. Extend the iOS app under `HyundaiApp/`. Requires weeks of Trip data accumulated from prior sessions.
 
 Add Features/Insights/:
 - A ModeSuggestionEngine (pure type, heavily unit-tested) that takes [Trip] and produces weekly insights:
@@ -269,7 +269,7 @@ Final polish passes:
 - Review all error messages for the non-technical reader.
 - Verify no Info.plist permission strings are missing (Location if we use it, Siri, etc.).
 
-The pure ModeSuggestionEngine + tests are an obvious split candidate vs. the InsightsHomeView UI — invoke `session-splitter` if both can land in parallel.
+The pure ModeSuggestionEngine + tests are an obvious split candidate from the InsightsHomeView UI; use the active runtime's native delegation tools if both can land safely in parallel.
 
 Done when: insights render against real accumulated data, unit tests pass, and the app feels ready for daily use.
 ```
@@ -281,6 +281,6 @@ Done when: insights render against real accumulated data, unit tests pass, and t
 ## Cross-session reminders
 
 - **Never paste credentials in chat.** They go into `backend/.env` directly on your machine.
-- **Keep SESSIONS.md and the plan file in sync** if scope shifts mid-project — update them before starting the next session so future-you isn't misled by stale instructions.
+- **Keep SESSIONS.md and the project guides in sync** if scope shifts mid-project — update them before starting the next session so future-you is not misled by stale instructions.
 - **Mark sessions Done with the commit SHA** as soon as they land, so `session-runner` skips them on the next sweep.
 - **If a session balloons,** stop and split it. The whole point of this breakdown is protecting context. Better to add Session 4a/4b than blow past a reasonable scope.
