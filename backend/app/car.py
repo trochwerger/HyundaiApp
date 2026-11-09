@@ -6,6 +6,7 @@ import dataclasses
 import datetime as dt
 import logging
 import math
+import threading
 from collections.abc import Mapping
 from datetime import timezone
 from typing import Any
@@ -16,6 +17,7 @@ from hyundai_kia_connect_api.const import BRANDS, REGIONS
 from hyundai_kia_connect_api.exceptions import AuthenticationError
 
 from .config import Settings
+from .login_guard import LoginBackoff, LoginUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -37,28 +39,68 @@ class CarService:
         )
         self._vehicle_id: str | None = None
         self._last_force_refresh_at: dt.datetime | None = None
+        self._ready = False
+        self._login_lock = threading.Lock()
+        self._login_backoff = LoginBackoff(
+            initial_seconds=settings.login_backoff_initial_seconds,
+            max_seconds=settings.login_backoff_max_seconds,
+        )
 
     def initialize(self) -> None:
-        """Log in once on startup and fetch an initial cached snapshot."""
+        """Log in once on startup and fetch an initial cached snapshot.
 
-        had_token = self._vehicle_manager.token is not None
-        refreshed = self._vehicle_manager.check_and_refresh_token()
-        if refreshed:
-            logger.info("token refreshed" if had_token else "logged in")
+        Raises LoginUnavailable on failure; callers may keep running and let
+        later requests retry once the backoff window has passed.
+        """
 
-        self._vehicle_manager.update_all_vehicles_with_cached_state()
-        self._vehicle_id = self._select_vehicle_id()
+        self._login(drop_token=False)
 
     def force_reauth(self) -> None:
         """Drop the cached session and log in again from configured credentials."""
 
         logger.info("forcing reauth")
-        self._vehicle_manager.token = None
-        self._vehicle_manager.check_and_refresh_token()
-        self._vehicle_manager.update_all_vehicles_with_cached_state()
-        self._vehicle_id = None
-        self._vehicle_id = self._select_vehicle_id()
+        self._login(drop_token=True)
         logger.info("reauth complete")
+
+    def _ensure_ready(self) -> None:
+        if not self._ready:
+            self._login(drop_token=False)
+
+    def _login(self, *, drop_token: bool) -> None:
+        with self._login_lock:
+            retry_after = self._login_backoff.retry_after_seconds()
+            if retry_after is not None:
+                raise LoginUnavailable(
+                    retry_after,
+                    "Bluelink login is backing off after earlier failures.",
+                )
+
+            try:
+                if drop_token:
+                    self._vehicle_manager.token = None
+                had_token = self._vehicle_manager.token is not None
+                refreshed = self._vehicle_manager.check_and_refresh_token()
+                if refreshed:
+                    logger.info("token refreshed" if had_token else "logged in")
+                self._vehicle_manager.update_all_vehicles_with_cached_state()
+                self._vehicle_id = None
+                self._vehicle_id = self._select_vehicle_id()
+            except Exception as exc:
+                self._ready = False
+                delay = self._login_backoff.record_failure()
+                logger.warning(
+                    "bluelink login failed (%s, attempt %d); next attempt in %ds",
+                    exc.__class__.__name__,
+                    self._login_backoff.failures,
+                    delay,
+                )
+                raise LoginUnavailable(
+                    delay,
+                    f"Bluelink login failed ({exc.__class__.__name__}).",
+                ) from exc
+
+            self._ready = True
+            self._login_backoff.record_success()
 
     def _call_with_reauth(self, fn: Any, *args: Any, **kwargs: Any) -> Any:
         try:
@@ -69,6 +111,7 @@ class CarService:
             return fn(*args, **kwargs)
 
     def get_vehicle_metadata(self) -> dict[str, Any]:
+        self._ensure_ready()
         vehicle = self._get_vehicle()
         return self._prune_none(
             {
@@ -83,6 +126,7 @@ class CarService:
         )
 
     def get_status(self, force: bool = False) -> dict[str, Any]:
+        self._ensure_ready()
         if force:
             retry_after_seconds = self._retry_after_seconds()
             if retry_after_seconds is not None:
@@ -141,6 +185,7 @@ class CarService:
         return self._run_command("stop_charge", "charge-stop")
 
     def get_trips(self, from_date: dt.date, to_date: dt.date) -> dict[str, Any]:
+        self._ensure_ready()
         vehicle_id = self._get_vehicle_id()
 
         if hasattr(self._vehicle_manager, "update_month_trip_info"):
@@ -241,6 +286,7 @@ class CarService:
         *args: Any,
     ) -> dict[str, Any]:
         command_name = command or method_name
+        self._ensure_ready()
         method = getattr(self._vehicle_manager, method_name, None)
         if method is None:
             raise HTTPException(

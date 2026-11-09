@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     snapshot_max_consecutive_failures_before_reauth: int = 3
     snapshot_max_backoff_seconds: int = 1800
     snapshot_db_path: str = "/data/snapshots.db"
+    login_backoff_initial_seconds: int = 900
+    login_backoff_max_seconds: int = 21600
 
     if SettingsConfigDict is not None:
         model_config = SettingsConfigDict(

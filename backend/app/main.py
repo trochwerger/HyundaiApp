@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request
 
 from .car import CarService
 from .config import Settings
+from .login_guard import LoginUnavailable
 from .rate_limit import FixedWindowRateLimiter
 from .routes.commands import router as commands_router
 from .routes.health import router as health_router
@@ -47,13 +48,20 @@ def create_app(
         if car_service is not None:
             app.state.car = car_service
         else:
+            # Configuration errors still abort startup.
+            service = await asyncio.to_thread(CarService, resolved_settings)
             try:
-                service = await asyncio.to_thread(CarService, resolved_settings)
                 await asyncio.to_thread(service.initialize)
-                app.state.car = service
-            except Exception as exc:
-                logger.exception("backend startup failed: %s", exc.__class__.__name__)
-                raise
+            except LoginUnavailable as exc:
+                # Stay up instead of exiting: a crash here makes Docker restart
+                # the container and log in again every minute, which gets the
+                # Bluelink account rate-limited. Requests and the collector
+                # retry once the login backoff window has passed.
+                logger.warning(
+                    "starting without a Bluelink session; next login attempt in %ds",
+                    exc.retry_after_seconds,
+                )
+            app.state.car = service
 
         store = SnapshotStore(path=resolved_settings.snapshot_db_path)
         await store.initialize()

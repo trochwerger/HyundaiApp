@@ -36,6 +36,7 @@ def make_car_service(vehicle_manager: StubVehicleManager) -> tuple[CarService, l
     service._vehicle_manager = vehicle_manager
     service._vehicle_id = None
     service._last_force_refresh_at = None
+    service._ready = True
     force_reauth_calls: list[int] = []
 
     def force_reauth() -> None:
