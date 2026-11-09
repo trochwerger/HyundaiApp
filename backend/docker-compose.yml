@@ -4,7 +4,11 @@ services:
     env_file:
       - .env
     ports:
-      - "8000:8000"
+      # Loopback only by default: Cloudflare Tunnel reaches the API over the
+      # Compose network, so the host port is just for local curl checks. Set
+      # BACKEND_BIND_ADDRESS (e.g. the VM's Tailscale IP or 0.0.0.0) in .env
+      # only while migrating from direct access.
+      - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:8000:8000"
     restart: unless-stopped
     volumes:
       - snapshot-data:/data

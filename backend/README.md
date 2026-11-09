@@ -58,59 +58,76 @@ pip install -r requirements.txt
 pytest
 ```
 
-## Cloudflare Tunnel
+## Cloudflare Tunnel + Access
 
-Cloudflare Tunnel gives the backend an HTTPS URL without opening inbound ports on your home network. The Docker sidecar in `docker-compose.yml` is for a stable named tunnel. For a quick smoke test, you can also run an ephemeral tunnel outside Docker.
+This is the supported way to reach the backend from the iOS app. The `cloudflared` sidecar opens an outbound-only connection to Cloudflare, so the host needs no inbound ports and the phone needs no VPN. Cloudflare Access sits in front of the tunnel and rejects any request that lacks the app's service token before it reaches FastAPI; the Bearer `API_KEY` remains the second layer.
 
-1. Create a free Cloudflare account. You do not need to move a domain to Cloudflare for the quick `trycloudflare.com` test URL.
-2. Install `cloudflared` locally: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
-3. Authorize `cloudflared` with your Cloudflare account. This opens a browser:
+Cost: Cloudflare Tunnel and Access (Zero Trust free plan, up to 50 users) are free. You need a domain whose DNS is on Cloudflare (any registrar; Cloudflare Registrar sells at cost). The free `trycloudflare.com` quick tunnel is not suitable for the app: its URL changes on every restart and it cannot be protected by Access.
 
-   ```bash
-   cloudflared tunnel login
-   ```
+### 1. Create the tunnel
 
-4. Create a named tunnel for the stable sidecar path:
-
-   ```bash
-   cloudflared tunnel create hyundai-backend
-   ```
-
-   The command prints a tunnel UUID and writes a credentials file to `~/.cloudflared/<UUID>.json`.
-
-5. Copy the credentials file into this repo's Cloudflare mount folder, then create a local config:
-
-   ```bash
-   cp ~/.cloudflared/<UUID>.json backend/cloudflared/<UUID>.json
-   cp backend/cloudflared/config.example.yml backend/cloudflared/config.yml
-   ```
-
-   Edit `backend/cloudflared/config.yml` and replace `<UUID>` with the tunnel UUID. Replace `<hostname>` with the hostname you want to use, such as `car.<your-domain>`.
-
-6. Choose one hostname path:
-
-   Quick ephemeral URL, no domain needed:
+Run these anywhere `cloudflared` is installed (your Mac is fine); only the resulting files move to the host. Install: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
 
 ```bash
-cloudflared tunnel --url http://localhost:8000
+cloudflared tunnel login                     # opens a browser; pick your domain
+cloudflared tunnel create hyundai-backend    # prints the tunnel UUID, writes ~/.cloudflared/<UUID>.json
+cloudflared tunnel route dns hyundai-backend car.<your-domain>
 ```
 
-   This prints a temporary `https://*.trycloudflare.com` URL. It does not use the named tunnel, credentials file, or Docker sidecar. It is useful for smoke-testing while the backend is already running locally with `docker compose up backend`.
+On the host that runs Docker Compose (the OCI VM), put the credentials and config in `backend/cloudflared/` (both are git-ignored):
 
-   Stable named tunnel with your own domain on Cloudflare:
+```bash
+# from your Mac
+scp ~/.cloudflared/<UUID>.json <vm>:hyundai/backend/cloudflared/
+# on the VM
+cp backend/cloudflared/config.example.yml backend/cloudflared/config.yml
+```
 
-   ```bash
-   cloudflared tunnel route dns hyundai-backend car.<your-domain>
-   docker compose up -d --build
-   ```
+Edit `config.yml`: replace `<UUID>` with the tunnel UUID and `<hostname>` with `car.<your-domain>`. Then start the stack:
 
-   The `cloudflared` sidecar reads `backend/cloudflared/config.yml` and reaches the API through the Compose network at `http://backend:8000`. The backend still publishes `localhost:8000` for local curl testing, but the tunnel does not need that host port.
+```bash
+docker compose up -d --build
+docker compose logs -f cloudflared   # expect "Registered tunnel connection"
+```
 
-7. Verify the tunnel:
+The sidecar reaches the API at `http://backend:8000` over the Compose network. The host port is published on `127.0.0.1` only (see `BACKEND_BIND_ADDRESS` in `.env.example`), so the API is not reachable from other interfaces.
 
-   ```bash
-   curl -H "Authorization: Bearer $API_KEY" https://<hostname>/status
-   ```
+### 2. Protect it with Cloudflare Access
+
+In the Cloudflare dashboard, open **Zero Trust** (menu names may shift slightly over time):
+
+1. **Access → Service Auth → Service Tokens → Create service token.** Name it `hyundai-ios`. Copy the **Client ID** and **Client Secret** now; the secret is shown only once. Note the expiry you choose and renew before it lapses.
+2. **Access → Applications → Add an application → Self-hosted.** Application domain: `car.<your-domain>` (whole hostname, no path).
+3. Add one policy: **Action = Service Auth**, **Include → Service Token → `hyundai-ios`**. Add no other policies, so browsers and anything without the token are refused.
+
+Verify from any machine:
+
+```bash
+# Without the token: Access blocks the request (403 or a redirect to cloudflareaccess.com).
+curl -i https://car.<your-domain>/health
+
+# With the token: reaches FastAPI.
+curl -H "CF-Access-Client-Id: $CF_ID" -H "CF-Access-Client-Secret: $CF_SECRET" \
+  https://car.<your-domain>/health
+curl -H "CF-Access-Client-Id: $CF_ID" -H "CF-Access-Client-Secret: $CF_SECRET" \
+  -H "Authorization: Bearer $API_KEY" https://car.<your-domain>/status
+```
+
+### 3. Pair the iOS app
+
+Settings → Pairing: backend URL `https://car.<your-domain>`, the API key, and the Access **Client ID** and **Client Secret**. Tap **Save**, then **Test connection**. If Access rejects the token, the app reports it explicitly rather than as a decoding error.
+
+### 4. Cut over from Tailscale
+
+1. While testing, keep the old path working by setting `BACKEND_BIND_ADDRESS` in `.env` to the VM's Tailscale IP (or `0.0.0.0`), then `docker compose up -d`.
+2. Once the app works over `https://car.<your-domain>`, remove `BACKEND_BIND_ADDRESS` from `.env` and run `docker compose up -d` again so the API listens on loopback only.
+3. The phone no longer needs the Tailscale VPN for this app. The app's plain-HTTP exception for `ts.net` is then unused and is scheduled for removal.
+
+### Notes
+
+- Behind the tunnel every request arrives from the `cloudflared` container, so the per-IP command rate limit behaves as one global limit. That is intended for this single-user backend.
+- Rotate the Access service token the same way as the API key: create a new token, add it to the policy, update the app, then delete the old token.
+- For a throwaway local smoke test without a domain, `cloudflared tunnel --url http://localhost:8000` prints a temporary `trycloudflare.com` URL. Do not pair the app with it.
 
 ## Deploy to Oracle Cloud Always Free
 
@@ -164,18 +181,14 @@ Oracle Cloud's Always Free tier includes an ARM Ampere A1 instance (up to 4 OCPU
 
    Within `SNAPSHOT_INTERVAL_SECONDS` you should see `snapshot collected` (or `snapshot skipped (no change)`) log lines.
 
-8. Repoint Cloudflare Tunnel to the VM. Either move the named tunnel by copying `backend/cloudflared/<UUID>.json` and `config.yml` over and starting the sidecar there, or create a fresh tunnel on the VM and update the DNS record:
-
-   ```bash
-   cloudflared tunnel create hyundai-backend-oci
-   cloudflared tunnel route dns hyundai-backend-oci car.<your-domain>
-   ```
+8. Set up Cloudflare Tunnel and Access on the VM by following [Cloudflare Tunnel + Access](#cloudflare-tunnel--access). If you already created a tunnel elsewhere, copy its `<UUID>.json` and `config.yml` into `backend/cloudflared/` on the VM; only one host should run a given tunnel.
 
 9. Smoke-test from anywhere:
 
    ```bash
-   curl -H "Authorization: Bearer $API_KEY" https://car.<your-domain>/health
-   curl -H "Authorization: Bearer $API_KEY" https://car.<your-domain>/snapshots/latest
+   CF="-H CF-Access-Client-Id:$CF_ID -H CF-Access-Client-Secret:$CF_SECRET"
+   curl $CF https://car.<your-domain>/health
+   curl $CF -H "Authorization: Bearer $API_KEY" https://car.<your-domain>/snapshots/latest
    ```
 
 Notes:
@@ -193,7 +206,8 @@ Notes:
 
 - Never commit `.env`.
 - Bluelink credentials stay on the host running this backend.
-- The iOS client only needs the `API_KEY`, not the Bluelink username, password, or PIN.
+- The iOS client only needs the `API_KEY` and the Cloudflare Access service token, not the Bluelink username, password, or PIN.
+- Bluelink's `client_id`/`client_secret` request headers come from the upstream `hyundai_kia_connect_api` library. They identify the official MyHyundai Canada app, ship inside every copy of it, and are not account secrets; nothing in this repository stores them.
 
 ### Rotating the API key
 
