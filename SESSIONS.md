@@ -150,6 +150,69 @@ Done when: `pytest` passes (including new snapshot collector + endpoint tests), 
 
 ---
 
+## Session 4.6 — Remote access via Cloudflare Tunnel + Access ⏳ Pending
+
+**Status:** Code landed on `task/cloudflare-access` — `8ef3c29` (iOS 26.0 target), `702ed23` (iOS Access token + GET-only retries), `f18061d` (loopback bind + README). pytest (56) and `xcodebuild test` (27, iPhone 17 / iOS 26.5) green. Remaining: the manual Cloudflare setup and cutover below; mark Done after that.
+
+**Goal:** Replace Tailscale-only access with a public HTTPS hostname behind Cloudflare Tunnel, gated by a Cloudflare Access service token in front of the Bearer API key, so the phone needs no VPN.
+
+**Scope (code):**
+- iOS: optional Access client ID/secret in Pairing (Keychain), sent as `CF-Access-Client-Id` / `CF-Access-Client-Secret` on every request; Access rejections surface as a clear error. Network-error retries limited to GET so commands are never re-sent.
+- iOS: deployment target raised to iOS 26.0 (single-user app; device runs iOS 26.6).
+- Backend: Compose publishes the API port on loopback by default (`BACKEND_BIND_ADDRESS` override for migration). README documents tunnel creation, the Access application + service-token policy, app pairing, and the Tailscale cutover.
+
+**Manual steps (user):** domain on Cloudflare, tunnel + Access application per `backend/README.md`, deploy on the OCI VM, pair the app, then drop `BACKEND_BIND_ADDRESS`.
+
+**Done when:** the app works over `https://car.<domain>` with Tailscale off, unauthenticated requests are refused by Access, and pytest + `xcodebuild test` are green. Afterwards remove the `ts.net` ATS exception from `Info.plist` (fold into Session 4.7).
+
+---
+
+## Session 4.7 — Car-centric dashboard redesign ⏳ Pending
+
+**Goal:** Replace the list-style Dashboard/Controls screens with a car-centric home screen using the iOS 26 design language.
+
+**Prompt to paste:**
+```
+Read AGENTS.md (Codex) or CLAUDE.md (Claude Code), then inspect Features/Dashboard, Features/Controls, Features/Settings and the networking layer. Author the requested changes directly and branch per the global Git workflow.
+
+Session 4.7 scope: iOS UI only, under `HyundaiApp/`. No backend or networking changes beyond what the views already call.
+
+- Home screen: a hero status card (EV battery ring, fuel %, total/EV range, lock state, charging indicator, "updated Xm ago" from the server timestamp), with the car's name/model.
+- Quick actions on the same screen: Lock, Unlock, Climate, Charge. Climate options (temp, duration, defrost) open in a bottom sheet. Unlock and other state-changing commands keep explicit confirmation where they have it today.
+- Keep the existing command progress banner and structured error display. Commands never auto-retry.
+- Pull-to-refresh stays cached (`force=false`); the live refresh stays an explicit, labelled action that surfaces the backend's rate-limit message.
+- Use native SwiftUI and SF Symbols with iOS 26 materials (Liquid Glass); no third-party UI libraries and no copied vehicle artwork. Optional: a user-picked car photo stored locally.
+- Polish empty, loading, unpaired and error states; support Dark Mode and Dynamic Type.
+- Remove the `ts.net` NSAppTransportSecurity exception from Info.plist once Session 4.6 cutover is confirmed.
+
+Keep formatting/derivation logic (percent, range, relative time, lock text) in a small pure type with unit tests; views render its output.
+
+Verify with `xcodebuild test` and a screenshot pass on the iOS 26 simulator in light and dark mode.
+
+Done when: the dashboard and controls render the redesigned layout against real data, tests pass, and commands behave exactly as before.
+```
+
+**Done when:** the new home screen is what you open the app for.
+
+---
+
+## Session 4.8 — Backend: never re-send vehicle commands at the transport layer ⏳ Pending
+
+**Goal:** Close a battery-safety gap: `backend/app/cf_patch.py` wraps the upstream session's `post()` with up to 3 retries on connection errors, and Bluelink commands are POSTs, so a dropped connection after the request left could re-send lock/climate/charge.
+
+**Prompt to paste:**
+```
+Read AGENTS.md (Codex) or CLAUDE.md (Claude Code), especially the vehicle and battery safety rules, then inspect backend/app/cf_patch.py, backend/app/car.py and the upstream KiaUvoApiCA command paths. Author the requested changes directly and branch per the global Git workflow.
+
+Session 4.8 scope: backend only. Make transport retries apply only to requests that cannot trigger a vehicle action (login/token, cached status reads). Command endpoints (lock, unlock, climate, charge, and anything that wakes the car, including force refresh) must be sent at most once per API call and surface failures as structured 502s. Keep the Cloudflare TLS impersonation.
+
+Add pytest coverage proving a connection error on a command URL is raised without a second send, and that a status read still retries.
+
+Done when: pytest passes and the diff shows no behaviour change for status reads.
+```
+
+---
+
 ## Session 5 — Analytics UI (Swift Charts) ⏳ Pending
 
 **Goal:** Efficiency trends, gas savings, mode-usage breakdown. Pure read-only over existing SwiftData.
@@ -227,6 +290,9 @@ Add Intents/VehicleIntents.swift with:
 - StopClimateIntent.
 - StartChargingIntent, StopChargingIntent.
 - CheckBatteryIntent — returns a spoken/written summary like "Battery 64 percent, range 42 kilometers, fuel 80 percent." Reads from the SwiftData store (cached, no force-refresh).
+- AutoLockCheckIntent — returns true only when the latest cached status says the car is unlocked and climate is off (a running proxy). Never force-refreshes; treats missing or stale data (older than a configurable window) as "do not lock".
+- AutoLockIntent — runs the same check, then sends a single lock command if it passes; returns "already locked", "car appears to be running", or the command result. No retries.
+- Document a walk-away automation (Shortcuts: car Wi-Fi disconnect, or CarPlay disconnect + Wait, then AutoLockCheck → confirm → Lock) and its limits: the trigger fires when the car shuts off even if the phone stays inside, so the confirming variant is the default.
 
 All intents:
 - Implement AppShortcutsProvider so they appear in Spotlight and the Shortcuts app without user setup.
