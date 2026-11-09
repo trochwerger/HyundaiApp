@@ -93,6 +93,11 @@ def create_app(
         title="Hyundai Companion Backend",
         version="0.1.0",
         lifespan=lifespan,
+        # The API is reachable from the public internet (Tailscale Funnel), so
+        # don't publish interactive docs or the schema.
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
     )
     app.state.settings = resolved_settings
     app.include_router(health_router)
