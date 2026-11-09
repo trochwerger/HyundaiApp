@@ -1,6 +1,12 @@
 services:
   backend:
     build: ./
+    # Bluelink Canada identifies the client by a device ID derived from the
+    # MAC address and hostname. Docker assigns new ones whenever the container
+    # is recreated, which makes every rebuild a "new device" that needs an
+    # emailed OTP. Pinning both keeps the device ID stable across rebuilds.
+    hostname: hyundai-backend
+    mac_address: "02:42:ac:11:00:42"
     env_file:
       - .env
     ports:

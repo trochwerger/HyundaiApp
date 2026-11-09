@@ -26,8 +26,17 @@ This backend is a small FastAPI wrapper around `hyundai_kia_connect_api` for a s
    ```
 
 4. Follow the upstream Canada guide while you do this: [CANADA_LOGIN_FLOW_WITH_OTP.md](https://github.com/Hyundai-Kia-Connect/hyundai_kia_connect_api/blob/master/CANADA_LOGIN_FLOW_WITH_OTP.md).
-5. Important upstream nuance: the current Canada implementation does **not** document a separate persisted `rmToken` flow the way the US implementation does. Instead, it relies on a consistent `Deviceid` for the remembered-device path. In the current package, that `Deviceid` is derived from the runtime host. If you plan to run this backend in Docker, the safest approach is to run the one-time OTP helper in the same runtime environment you will use for the backend, otherwise Docker may appear as a different device and prompt again.
-6. **Cloudflare TLS bypass:** Bluelink Canada is fronted by Cloudflare which blocks plain Python `requests` (403). The backend transparently swaps the upstream library's HTTP session for a `curl_cffi`-backed one that impersonates Chrome's TLS fingerprint. No action required from the user.
+5. **Docker:** `docker-compose.yml` pins the backend container's `hostname` and `mac_address`, because the library derives the Canada `Deviceid` from them. Run the helper inside that container so the verified device is the one the backend uses, then restart the backend so it logs in right away:
+
+   ```bash
+   docker compose up -d --build backend
+   docker compose exec backend python scripts/otp_login.py
+   docker compose restart backend
+   ```
+
+   Changing either pinned value makes Bluelink treat the backend as a new device and ask for another OTP.
+6. Important upstream nuance: the current Canada implementation does **not** document a separate persisted `rmToken` flow the way the US implementation does. Instead, it relies on a consistent `Deviceid` for the remembered-device path. In the current package, that `Deviceid` is derived from the runtime host. If you plan to run this backend in Docker, the safest approach is to run the one-time OTP helper in the same runtime environment you will use for the backend, otherwise Docker may appear as a different device and prompt again.
+7. **Cloudflare TLS bypass:** Bluelink Canada is fronted by Cloudflare which blocks plain Python `requests` (403). The backend transparently swaps the upstream library's HTTP session for a `curl_cffi`-backed one that impersonates Chrome's TLS fingerprint. No action required from the user.
 
 ## Run Locally
 

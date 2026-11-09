@@ -11,11 +11,12 @@ from hyundai_kia_connect_api.const import OTP_NOTIFY_TYPE
 
 
 def main() -> int:
+    # Locally the credentials come from backend/.env. Inside the backend
+    # container (`docker compose exec backend python scripts/otp_login.py`)
+    # Compose already provides them as environment variables.
     env_path = Path(__file__).resolve().parents[1] / ".env"
-    if not env_path.exists():
-        print(f"Missing {env_path}. Copy backend/.env.example to backend/.env and fill in your credentials.")
-        return 1
-    load_dotenv(env_path)
+    if env_path.exists():
+        load_dotenv(env_path)
 
     from app.cf_patch import apply as _apply_cf_patch
 
@@ -25,7 +26,7 @@ def main() -> int:
     values = {name: (os.environ.get(name) or "").strip() for name in required}
     missing = [name for name, value in values.items() if not value]
     if missing:
-        print(f"Missing required env vars in {env_path}: {', '.join(missing)}")
+        print(f"Missing required env vars ({env_path} or environment): {', '.join(missing)}")
         return 1
 
     region_name = (os.environ.get("REGION", "canada") or "canada").strip().lower()
