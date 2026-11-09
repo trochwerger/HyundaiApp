@@ -3,24 +3,15 @@ import SwiftUI
 struct RootView: View {
     var body: some View {
         TabView {
-            NavigationStack {
-                DashboardView()
+            Tab("Car", systemImage: "car.fill") {
+                NavigationStack {
+                    DashboardView()
+                }
             }
-                .tabItem {
-                    Label("Dashboard", systemImage: "car.fill")
-                }
 
-            NavigationStack {
-                ControlsView()
+            Tab("Settings", systemImage: "gear") {
+                SettingsView()
             }
-                .tabItem {
-                    Label("Controls", systemImage: "lock.fill")
-                }
-
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gear")
-                }
         }
     }
 }

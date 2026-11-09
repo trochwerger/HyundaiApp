@@ -1,160 +1,402 @@
 import SwiftUI
 import SwiftData
 
+/// Car-centric home screen: status card, quick actions, and live refresh.
+///
+/// Battery-safety rules: opening the screen and pull-to-refresh read the
+/// backend's cached status (`force=false`). Only the labelled "Refresh from
+/// car" button wakes the vehicle. Commands are sent once and never retried.
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
-    // The VM starts unbound so previews and tests can instantiate it without SwiftData.
+
+    // The VMs start unbound so previews and tests can instantiate them without SwiftData.
     @StateObject private var vm: DashboardViewModel
+    @StateObject private var controls: ControlsViewModel
+
+    @State private var isPaired = DashboardView.hasPairing() || DashboardView.isSampleMode
+    @State private var showClimate = false
+    @State private var confirmUnlock = false
+    @State private var showChargeOptions = false
+    @State private var dismissTask: Task<Void, Never>?
 
     init(client: CarAPIClient = CarAPIClient()) {
         _vm = StateObject(wrappedValue: DashboardViewModel(client: client))
+        _controls = StateObject(wrappedValue: ControlsViewModel(client: client))
     }
 
     var body: some View {
-        List {
-            if case .error(let message) = vm.loadState {
-                Section {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(message)
-                            .font(.subheadline)
-                            .foregroundStyle(.red)
-
-                        Button("Retry") {
-                            Task {
-                                await vm.refresh(force: true)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
+        // Re-render every minute so "Updated X min ago" stays current.
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            content(presentation: VehicleStatusPresentation(
+                status: vm.status,
+                lastRefresh: vm.lastRefresh,
+                now: context.date
+            ))
+        }
+        .background(background)
+        .overlay(alignment: .top) { banner }
+        .animation(.easeInOut(duration: 0.2), value: controls.busy)
+        .animation(.easeInOut(duration: 0.2), value: controls.lastResult)
+        .sheet(isPresented: $showClimate) {
+            ClimateSheet(controls: controls, send: send)
+        }
+        .confirmationDialog("Unlock your car?", isPresented: $confirmUnlock, titleVisibility: .visible) {
+            Button("Unlock") { send(.unlock) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The doors will unlock remotely.")
+        }
+        .confirmationDialog("Charging", isPresented: $showChargeOptions, titleVisibility: .visible) {
+            Button("Start charging") { send(.chargeStart) }
+            Button("Stop charging", role: .destructive) { send(.chargeStop) }
+            Button("Cancel", role: .cancel) {}
+        }
+        .onChange(of: controls.lastResult) { _, newValue in
+            scheduleBannerDismiss(newValue)
+        }
+        .onAppear {
+            guard !Self.isSampleMode else { return }
+            let pairedNow = Self.hasPairing()
+            if pairedNow && !isPaired {
+                Task { await vm.refresh(force: false) }
             }
-
-            Section("Vehicle") {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(headerTitle)
-                        .font(.title3.weight(.semibold))
-                    Text(headerSubtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 4)
+            isPaired = pairedNow
+        }
+        .task {
+            #if DEBUG
+            if Self.isSampleMode {
+                vm.status = Self.sampleStatus
+                vm.lastRefresh = Date()
+                return
             }
-
-            Section("Status") {
-                metricRow(title: "Fuel", value: percentageText(vm.status?.fuelLevel))
-                metricRow(title: "EV battery", value: evBatteryText)
-                metricRow(title: "Total range", value: distanceText(value: vm.status?.totalDrivingRange, unit: vm.status?.totalDrivingRangeUnit))
-                metricRow(title: "Lock state", value: lockStateText)
-                metricRow(title: "Last updated", value: lastUpdatedText)
+            #endif
+            vm.configure(context: modelContext)
+            if isPaired {
+                await vm.refresh(force: false)
             }
         }
-        .navigationTitle("Dashboard")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                if vm.loadState == .loading {
-                    Text("Requesting live refresh…")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Button("Refresh") {
-                        Task {
-                            await vm.refresh(force: true)
-                        }
-                    }
-                }
-            }
+    }
+
+    // MARK: - States
+
+    @ViewBuilder
+    private func content(presentation p: VehicleStatusPresentation) -> some View {
+        if !isPaired {
+            unpairedView
+        } else if vm.status == nil, case .error(let message) = vm.loadState {
+            unreachableView(message: message)
+        } else if vm.status == nil {
+            ProgressView("Loading your car…")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            statusScroll(p)
         }
+    }
+
+    private var unpairedView: some View {
+        ContentUnavailableView {
+            Label("Connect your backend", systemImage: "car.fill")
+        } description: {
+            Text("Add your backend URL and API key to see your car here.")
+        } actions: {
+            NavigationLink("Open Pairing") {
+                PairingView()
+            }
+            .buttonStyle(.glassProminent)
+        }
+    }
+
+    private func unreachableView(message: String) -> some View {
+        ContentUnavailableView {
+            Label("Can't reach your car", systemImage: "wifi.exclamationmark")
+        } description: {
+            Text(message)
+        } actions: {
+            Button("Try again") {
+                Task { await vm.refresh(force: false) }
+            }
+            .buttonStyle(.glassProminent)
+        }
+    }
+
+    private func statusScroll(_ p: VehicleStatusPresentation) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                header(p)
+                heroCard(p)
+
+                if case .error(let message) = vm.loadState {
+                    inlineError(message)
+                }
+
+                Text("Quick actions")
+                    .font(.headline)
+                    .padding(.top, 4)
+                actions(p)
+
+                liveRefresh
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 24)
+        }
+        .scrollIndicators(.hidden)
         .refreshable {
             await vm.refresh(force: false)
         }
-        .task {
-            vm.configure(context: modelContext)
-            await vm.refresh(force: false)
+        .navigationTitle(p.title)
+        .toolbar {
+            if vm.loadState == .loading {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ProgressView()
+                }
+            }
         }
     }
 
-    private var headerTitle: String {
-        let parts = [vm.status?.year.map(String.init), vm.status?.model]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
+    // MARK: - Sections
 
-        return parts.isEmpty ? "—" : parts.joined(separator: " ")
-    }
-
-    private var headerSubtitle: String {
-        let parts = [vm.status?.name, vm.status?.vin]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-
-        return parts.isEmpty ? "—" : parts.joined(separator: " • ")
-    }
-
-    private var evBatteryText: String {
-        let base = percentageText(vm.status?.evBatteryPercentage)
-        if vm.status?.evBatteryIsCharging == true {
-            return "\(base) charging"
+    private func header(_ p: VehicleStatusPresentation) -> some View {
+        HStack(spacing: 6) {
+            if let subtitle = p.subtitle {
+                Text(subtitle)
+                Text("·")
+            }
+            Text(p.updatedText)
+            if p.freshness == .stale {
+                Image(systemName: "clock.badge.exclamationmark")
+                    .foregroundStyle(.orange)
+                    .accessibilityLabel("Status may be out of date")
+            }
+            Spacer(minLength: 0)
+            if let temperature = p.outsideTemperatureText {
+                Label(temperature, systemImage: "thermometer.medium")
+                    .accessibilityLabel("Outside \(temperature)")
+            }
         }
-        return base
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
     }
 
-    private var lockStateText: String {
-        guard let isLocked = vm.status?.isLocked else {
-            return "—"
+    private func heroCard(_ p: VehicleStatusPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 20) {
+                    batteryRing(p)
+                    levels(p)
+                }
+                VStack(alignment: .center, spacing: 18) {
+                    batteryRing(p)
+                    levels(p)
+                }
+            }
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { pills(p) }
+                VStack(alignment: .leading, spacing: 8) { pills(p) }
+            }
         }
-        return isLocked ? "Locked" : "Unlocked"
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(.regular, in: .rect(cornerRadius: 28))
     }
 
-    private var lastUpdatedText: String {
-        if let serverTimestamp = vm.status?.lastUpdatedAt {
-            return formatDateString(serverTimestamp)
-        }
-
-        if let lastRefresh = vm.lastRefresh {
-            return DateFormatter.localizedString(from: lastRefresh, dateStyle: .medium, timeStyle: .short)
-        }
-
-        return "—"
+    private func batteryRing(_ p: VehicleStatusPresentation) -> some View {
+        BatteryRing(
+            fraction: p.batteryFraction,
+            percentText: p.batteryText,
+            rangeText: p.evRangeText,
+            isCharging: p.chargeState == .charging
+        )
     }
 
-    private func metricRow(title: String, value: String) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            Text(value)
+    private func levels(_ p: VehicleStatusPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            LevelBar(
+                title: "Fuel",
+                symbol: "fuelpump.fill",
+                fraction: p.fuelFraction,
+                valueText: p.fuelText,
+                detailText: "\(p.fuelRangeText) range",
+                tint: .orange
+            )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Total range")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Text(p.totalRangeText)
+                    .font(.title2.weight(.bold))
+                    .monospacedDigit()
+            }
+            .accessibilityElement(children: .combine)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func pills(_ p: VehicleStatusPresentation) -> some View {
+        StatusPill(text: p.lockText, symbol: p.lockSymbol, tint: lockTint(p.lockState))
+        StatusPill(text: p.chargeText, symbol: p.chargeSymbol, tint: chargeTint(p.chargeState))
+    }
+
+    private func actions(_ p: VehicleStatusPresentation) -> some View {
+        GlassEffectContainer(spacing: 12) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                QuickActionTile(title: "Lock", symbol: "lock.fill", tint: .blue, isBusy: controls.busy == .lock) {
+                    send(.lock)
+                }
+                QuickActionTile(title: "Unlock", symbol: "lock.open.fill", tint: .orange, isBusy: controls.busy == .unlock) {
+                    confirmUnlock = true
+                }
+                QuickActionTile(
+                    title: "Climate",
+                    symbol: "fan.fill",
+                    tint: .green,
+                    isBusy: controls.busy == .startClimate || controls.busy == .stopClimate
+                ) {
+                    showClimate = true
+                }
+                QuickActionTile(
+                    title: "Charging",
+                    symbol: "bolt.fill",
+                    tint: .teal,
+                    isBusy: controls.busy == .chargeStart || controls.busy == .chargeStop
+                ) {
+                    showChargeOptions = true
+                }
+            }
+        }
+        .disabled(controls.busy != nil)
+    }
+
+    private var liveRefresh: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                Task { await vm.refresh(force: true) }
+            } label: {
+                Label("Refresh from car", systemImage: "antenna.radiowaves.left.and.right")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.glass)
+            .controlSize(.large)
+            .disabled(vm.loadState == .loading)
+
+            Text("Pull down for the latest saved status. Refresh from car wakes the vehicle and is limited to once every 10 minutes.")
+                .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+        .padding(.top, 8)
     }
 
-    private func percentageText(_ value: Int?) -> String {
-        guard let value else { return "—" }
-        return "\(value)%"
+    private func inlineError(_ message: String) -> some View {
+        Label(message, systemImage: "exclamationmark.triangle.fill")
+            .font(.subheadline)
+            .foregroundStyle(.red)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .glassEffect(.regular.tint(.red.opacity(0.12)), in: .rect(cornerRadius: 18))
     }
 
-    private func distanceText(value: Double?, unit: String?) -> String {
-        guard let value else { return "—" }
-        let formattedValue = value.formatted(.number.precision(.fractionLength(0...1)))
-        if let unit, !unit.isEmpty {
-            return "\(formattedValue) \(unit)"
+    // MARK: - Banner
+
+    @ViewBuilder
+    private var banner: some View {
+        if controls.busy != nil || controls.lastResult != nil {
+            CommandStatusBanner(busy: controls.busy, result: controls.lastResult) {
+                dismissTask?.cancel()
+                controls.clearResult()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .transition(.move(edge: .top).combined(with: .opacity))
         }
-        return formattedValue
     }
 
-    private func formatDateString(_ rawValue: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-        if let date = formatter.date(from: rawValue) {
-            return DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .short)
+    private func scheduleBannerDismiss(_ result: ControlsViewModel.Result?) {
+        dismissTask?.cancel()
+        guard let result else { return }
+        // Failures stay a little longer so they can be read.
+        let seconds: Double = if case .failure = result { 6 } else { 3 }
+        dismissTask = Task {
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled else { return }
+            controls.clearResult()
         }
+    }
 
-        let fallbackFormatter = ISO8601DateFormatter()
-        if let date = fallbackFormatter.date(from: rawValue) {
-            return DateFormatter.localizedString(from: date, dateStyle: .medium, timeStyle: .short)
+    // MARK: - Actions
+
+    /// Sends a command once. On success, re-reads the cached status (no wake-up).
+    private func send(_ command: ControlsViewModel.Command) {
+        Task {
+            await controls.perform(command)
+            if case .success = controls.lastResult {
+                await vm.refresh(force: false)
+            }
         }
+    }
 
-        return rawValue
+    // MARK: - Styling
+
+    private var background: some View {
+        LinearGradient(
+            colors: [Color.teal.opacity(0.22), Color(.systemBackground)],
+            startPoint: .top,
+            endPoint: .center
+        )
+        .ignoresSafeArea()
+    }
+
+    private func lockTint(_ state: VehicleStatusPresentation.LockState) -> Color {
+        switch state {
+        case .locked: return .green
+        case .unlocked: return .orange
+        case .unknown: return .secondary
+        }
+    }
+
+    private func chargeTint(_ state: VehicleStatusPresentation.ChargeState) -> Color {
+        switch state {
+        case .charging: return .green
+        case .pluggedIn: return .teal
+        case .unplugged, .unknown: return .secondary
+        }
+    }
+
+    /// Debug-only `-sampleData` launch argument: render a canned status with
+    /// no network calls, for simulator screenshots without real credentials.
+    static var isSampleMode: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-sampleData")
+        #else
+        return false
+        #endif
+    }
+
+    static func hasPairing() -> Bool {
+        let url = KeychainStore.getBackendURL()?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let key = KeychainStore.getAPIKey()?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return !url.isEmpty && !key.isEmpty
     }
 }
+
+#if DEBUG
+extension DashboardView {
+    static let sampleStatus: StatusDTO? = {
+        let json = """
+        {
+          "name": "TUCSON", "model": "TUCSON PHEV", "year": 2025,
+          "ev_battery_percentage": 81, "ev_driving_range": 48, "ev_driving_range_unit": "km",
+          "fuel_level": 59, "fuel_driving_range": 402, "total_driving_range": 450,
+          "total_driving_range_unit": "km", "is_locked": true,
+          "ev_battery_is_charging": false, "ev_battery_is_plugged_in": 0,
+          "outside_temperature": 5
+        }
+        """
+        return try? JSONDecoder().decode(StatusDTO.self, from: Data(json.utf8))
+    }()
+}
+#endif
 
 #Preview {
     NavigationStack {
