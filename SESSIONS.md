@@ -169,7 +169,9 @@ Done when: `pytest` passes (including new snapshot collector + endpoint tests), 
 
 ---
 
-## Session 4.7 — Car-centric dashboard redesign ⏳ Pending
+## Session 4.7 — Car-centric dashboard redesign ✅ Done
+
+**Status:** Done — commit `768fe63` on `task/session-4-7-dashboard`. One "Car" tab replaces Dashboard + Controls: glass status card (battery ring, fuel, ranges, lock/charge pills, freshness), quick-action tiles, climate bottom sheet, unlock confirmation, labelled "Refresh from car". Pure `VehicleStatusPresentation` + 8 tests; `xcodebuild test` 35/35 on iPhone 17 / iOS 26.5; light/dark screenshots checked with `-sampleData`. Not exercised interactively on the simulator: sheet, dialogs and command banner. Optional user car photo not done.
 
 **Goal:** Replace the list-style Dashboard/Controls screens with a car-centric home screen using the iOS 26 design language.
 
