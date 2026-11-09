@@ -23,10 +23,26 @@ public enum CarAPIError: Error, Equatable, LocalizedError {
     }
 }
 
+/// Cloudflare Access service-token credentials sent with every request when the
+/// backend sits behind a Cloudflare Tunnel protected by an Access application.
+public struct AccessServiceToken: Equatable, Sendable {
+    public let clientID: String
+    public let clientSecret: String
+
+    public init?(clientID: String?, clientSecret: String?) {
+        let id = clientID?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let secret = clientSecret?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !id.isEmpty, !secret.isEmpty else { return nil }
+        self.clientID = id
+        self.clientSecret = secret
+    }
+}
+
 public final class CarAPIClient {
     private let session: URLSession
     private let baseURLProvider: () -> URL?
     private let tokenProvider: () -> String?
+    private let accessTokenProvider: () -> AccessServiceToken?
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
 
@@ -38,11 +54,18 @@ public final class CarAPIClient {
         },
         tokenProvider: @escaping () -> String? = {
             KeychainStore.getAPIKey()
+        },
+        accessTokenProvider: @escaping () -> AccessServiceToken? = {
+            AccessServiceToken(
+                clientID: KeychainStore.getAccessClientID(),
+                clientSecret: KeychainStore.getAccessClientSecret()
+            )
         }
     ) {
         self.session = session
         self.baseURLProvider = baseURLProvider
         self.tokenProvider = tokenProvider
+        self.accessTokenProvider = accessTokenProvider
     }
 
     public func health() async throws -> HealthDTO {
@@ -141,6 +164,13 @@ public final class CarAPIClient {
         request.httpMethod = method
         request.httpBody = body
 
+        // Cloudflare Access gates every path, including /health, so the
+        // service token goes on all requests when configured.
+        if let accessToken = accessTokenProvider() {
+            request.setValue(accessToken.clientID, forHTTPHeaderField: "CF-Access-Client-Id")
+            request.setValue(accessToken.clientSecret, forHTTPHeaderField: "CF-Access-Client-Secret")
+        }
+
         if requiresAuth {
             let token = tokenProvider()?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !token.isEmpty else {
@@ -159,8 +189,12 @@ public final class CarAPIClient {
     private func send<T: Decodable>(
         _ request: URLRequest,
         decodeAs type: T.Type,
-        shouldRetry: Bool = true
+        shouldRetry: Bool? = nil
     ) async throws -> T {
+        // Only idempotent reads are retried. A vehicle command may have reached
+        // the backend before the connection dropped, and re-sending it could
+        // wake the car twice (see the project's battery-safety rules).
+        let shouldRetry = shouldRetry ?? (request.httpMethod == "GET")
         do {
             let (data, response) = try await session.data(for: request)
             return try decodeResponse(data: data, response: response, as: type)
@@ -187,6 +221,12 @@ public final class CarAPIClient {
             throw CarAPIError.network(message: "Invalid server response.")
         }
 
+        // Without a valid service token, Cloudflare Access either redirects to
+        // its sign-in page (which URLSession follows) or answers 403 itself.
+        if Self.isCloudflareAccessRejection(httpResponse) {
+            throw CarAPIError.http(status: 403, message: Self.accessRejectedMessage)
+        }
+
         guard (200...299).contains(httpResponse.statusCode) else {
             throw CarAPIError.http(status: httpResponse.statusCode, message: decodeHTTPError(from: data))
         }
@@ -198,6 +238,18 @@ public final class CarAPIClient {
         } catch {
             throw CarAPIError.decoding(message: error.localizedDescription)
         }
+    }
+
+    public static let accessRejectedMessage =
+        "Cloudflare Access blocked the request. Check the Access client ID and secret in Pairing."
+
+    static func isCloudflareAccessRejection(_ response: HTTPURLResponse) -> Bool {
+        if let host = response.url?.host?.lowercased(), host.hasSuffix("cloudflareaccess.com") {
+            return true
+        }
+        guard response.statusCode == 401 || response.statusCode == 403 else { return false }
+        let contentType = (response.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
+        return contentType.contains("text/html")
     }
 
     private func decodeHTTPError(from data: Data) -> String {

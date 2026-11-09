@@ -14,6 +14,18 @@ struct PairingView: View {
                 SecureField("API key", text: $vm.apiKey)
             }
 
+            Section {
+                TextField("Client ID", text: $vm.accessClientID)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+
+                SecureField("Client secret", text: $vm.accessClientSecret)
+            } header: {
+                Text("Cloudflare Access")
+            } footer: {
+                Text("Optional. Fill in both when the backend is behind a Cloudflare Access application with a service token.")
+            }
+
             Section("Actions") {
                 Button("Save") {
                     do {

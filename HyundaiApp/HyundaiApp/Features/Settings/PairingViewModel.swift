@@ -11,11 +11,15 @@ final class PairingViewModel: ObservableObject {
 
     @Published var backendURL: String
     @Published var apiKey: String
+    @Published var accessClientID: String
+    @Published var accessClientSecret: String
     @Published var testState: TestState
 
     init() {
         backendURL = KeychainStore.getBackendURL() ?? ""
         apiKey = KeychainStore.getAPIKey() ?? ""
+        accessClientID = KeychainStore.getAccessClientID() ?? ""
+        accessClientSecret = KeychainStore.getAccessClientSecret() ?? ""
         testState = .idle
     }
 
@@ -23,11 +27,18 @@ final class PairingViewModel: ObservableObject {
         let trimmedURL = backendURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        let trimmedAccessID = accessClientID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedAccessSecret = accessClientSecret.trimmingCharacters(in: .whitespacesAndNewlines)
+
         backendURL = trimmedURL
         apiKey = trimmedKey
+        accessClientID = trimmedAccessID
+        accessClientSecret = trimmedAccessSecret
 
         try KeychainStore.setBackendURL(trimmedURL)
         try KeychainStore.setAPIKey(trimmedKey)
+        try KeychainStore.setAccessClientID(trimmedAccessID)
+        try KeychainStore.setAccessClientSecret(trimmedAccessSecret)
     }
 
     func testConnection() async {
@@ -40,6 +51,10 @@ final class PairingViewModel: ObservableObject {
             },
             tokenProvider: { [weak self] in
                 self?.apiKey
+            },
+            accessTokenProvider: { [weak self] in
+                guard let self else { return nil }
+                return AccessServiceToken(clientID: self.accessClientID, clientSecret: self.accessClientSecret)
             }
         )
 

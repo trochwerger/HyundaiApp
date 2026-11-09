@@ -5,6 +5,8 @@ public enum KeychainStore {
     private static let service = "com.tomas.hyundaiapp"
     private static let backendURLAccount = "backendURL"
     private static let apiKeyAccount = "apiKey"
+    private static let accessClientIDAccount = "cfAccessClientId"
+    private static let accessClientSecretAccount = "cfAccessClientSecret"
 
     public enum KeychainError: Error {
         case osStatus(OSStatus)
@@ -26,9 +28,37 @@ public enum KeychainStore {
         getValue(account: apiKeyAccount)
     }
 
+    /// Cloudflare Access service token. Both parts are optional; an empty
+    /// value removes the stored item so the client stops sending the headers.
+    public static func setAccessClientID(_ value: String) throws {
+        try setOrDelete(value, account: accessClientIDAccount)
+    }
+
+    public static func getAccessClientID() -> String? {
+        getValue(account: accessClientIDAccount)
+    }
+
+    public static func setAccessClientSecret(_ value: String) throws {
+        try setOrDelete(value, account: accessClientSecretAccount)
+    }
+
+    public static func getAccessClientSecret() -> String? {
+        getValue(account: accessClientSecretAccount)
+    }
+
     public static func clear() throws {
         try deleteValue(account: backendURLAccount)
         try deleteValue(account: apiKeyAccount)
+        try deleteValue(account: accessClientIDAccount)
+        try deleteValue(account: accessClientSecretAccount)
+    }
+
+    private static func setOrDelete(_ value: String, account: String) throws {
+        if value.isEmpty {
+            try deleteValue(account: account)
+        } else {
+            try setValue(value, account: account)
+        }
     }
 
     private static func baseQuery(account: String) -> [String: Any] {

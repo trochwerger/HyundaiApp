@@ -201,7 +201,117 @@ final class CarAPIClientTests: XCTestCase {
         }
     }
 
-    private func makeClient(tokenProvider: @escaping () -> String? = { "test-token" }) -> CarAPIClient {
+    func testAccessHeadersSentOnEveryRequestWhenConfigured() async throws {
+        let seen = LockedCounter()
+        MockURLProtocol.handler = { request in
+            seen.increment()
+            XCTAssertEqual(request.value(forHTTPHeaderField: "CF-Access-Client-Id"), "id.access")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "CF-Access-Client-Secret"), "s3cret")
+            let body = request.url?.path == "/health" ? #"{"status":"ok"}"# : #"{"is_locked":true}"#
+            return (
+                HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                Data(body.utf8)
+            )
+        }
+
+        let client = makeClient(accessToken: AccessServiceToken(clientID: " id.access ", clientSecret: "s3cret"))
+        _ = try await client.health()
+        _ = try await client.status(force: false)
+
+        XCTAssertEqual(seen.value, 2)
+    }
+
+    func testAccessHeadersOmittedWhenNotConfigured() async throws {
+        MockURLProtocol.handler = { request in
+            XCTAssertNil(request.value(forHTTPHeaderField: "CF-Access-Client-Id"))
+            XCTAssertNil(request.value(forHTTPHeaderField: "CF-Access-Client-Secret"))
+            return (
+                HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                Data(#"{"status":"ok"}"#.utf8)
+            )
+        }
+
+        _ = try await makeClient().health()
+    }
+
+    func testAccessServiceTokenRequiresBothParts() {
+        XCTAssertNil(AccessServiceToken(clientID: "id", clientSecret: ""))
+        XCTAssertNil(AccessServiceToken(clientID: "  ", clientSecret: "secret"))
+        XCTAssertNil(AccessServiceToken(clientID: nil, clientSecret: nil))
+        XCTAssertNotNil(AccessServiceToken(clientID: "id", clientSecret: "secret"))
+    }
+
+    func testAccessLoginRedirectMapsToAccessError() async {
+        MockURLProtocol.handler = { _ in
+            (
+                HTTPURLResponse(
+                    url: URL(string: "https://team.cloudflareaccess.com/cdn-cgi/access/login")!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Content-Type": "text/html"]
+                )!,
+                Data("<html></html>".utf8)
+            )
+        }
+
+        do {
+            _ = try await makeClient().status(force: false)
+            XCTFail("Expected Access rejection")
+        } catch let error as CarAPIError {
+            XCTAssertEqual(error, .http(status: 403, message: CarAPIClient.accessRejectedMessage))
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    func testAccessHTMLForbiddenMapsToAccessError() async {
+        MockURLProtocol.handler = { request in
+            (
+                HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 403,
+                    httpVersion: nil,
+                    headerFields: ["Content-Type": "text/html; charset=UTF-8"]
+                )!,
+                Data("<html>Forbidden</html>".utf8)
+            )
+        }
+
+        do {
+            _ = try await makeClient().health()
+            XCTFail("Expected Access rejection")
+        } catch let error as CarAPIError {
+            XCTAssertEqual(error, .http(status: 403, message: CarAPIClient.accessRejectedMessage))
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    func testCommandNetworkErrorIsNotRetried() async {
+        let counter = LockedCounter()
+        MockURLProtocol.handler = { _ in
+            counter.increment()
+            throw URLError(.networkConnectionLost)
+        }
+
+        do {
+            _ = try await makeClient().lock()
+            XCTFail("Expected network error")
+        } catch let error as CarAPIError {
+            guard case .network = error else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertEqual(counter.value, 1)
+    }
+
+    private func makeClient(
+        tokenProvider: @escaping () -> String? = { "test-token" },
+        accessToken: AccessServiceToken? = nil
+    ) -> CarAPIClient {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [MockURLProtocol.self]
         let session = URLSession(configuration: config)
@@ -209,7 +319,8 @@ final class CarAPIClientTests: XCTestCase {
         return CarAPIClient(
             session: session,
             baseURLProvider: { URL(string: "http://example.com")! },
-            tokenProvider: tokenProvider
+            tokenProvider: tokenProvider,
+            accessTokenProvider: { accessToken }
         )
     }
 }
