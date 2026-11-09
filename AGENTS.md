@@ -4,7 +4,7 @@ workspace_mode: solo
 
 HyundaiApp is a personal Hyundai Tucson PHEV companion. The repository contains:
 
-- `backend/`: a Python 3.11 FastAPI service wrapping the Hyundai Bluelink Canada API. It provides authenticated vehicle status and commands, stores periodic snapshots in SQLite, and can run with Docker Compose and Cloudflare Tunnel.
+- `backend/`: a Python 3.11 FastAPI service wrapping the Hyundai Bluelink Canada API. It provides authenticated vehicle status and commands, stores periodic snapshots in SQLite, and runs with Docker Compose on an OCI VM, published over HTTPS via Tailscale Funnel (Cloudflare Tunnel + Access is a documented alternative).
 - `HyundaiApp/`: an iOS 26+ SwiftUI app. It pairs with the backend, stores credentials in Keychain, persists vehicle history with SwiftData in App Group `group.com.tomas.hyundaiapp`, and exposes the dashboard and remote controls.
 - `HyundaiApp/HyundaiAppTests/`: deterministic networking and trip-building tests.
 - `SESSIONS.md`: the ordered implementation roadmap. Completed entries are historical records; pending entries are the source of truth for remaining feature scope.

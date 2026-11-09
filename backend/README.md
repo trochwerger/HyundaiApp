@@ -67,9 +67,40 @@ pip install -r requirements.txt
 pytest
 ```
 
-## Cloudflare Tunnel + Access
+## Remote access: Tailscale Funnel (current)
 
-This is the supported way to reach the backend from the iOS app. The `cloudflared` sidecar opens an outbound-only connection to Cloudflare, so the host needs no inbound ports and the phone needs no VPN. Cloudflare Access sits in front of the tunnel and rejects any request that lacks the app's service token before it reaches FastAPI; the Bearer `API_KEY` remains the second layer.
+The OCI VM publishes the API at `https://hyundai-oci.tail75a25a.ts.net` through Tailscale Funnel. Funnel gives the tailnet name a public HTTPS endpoint with a valid certificate and proxies it to `http://127.0.0.1:8000` on the VM, so the phone needs no VPN, no domain is required, and the VM opens no inbound ports. It is free.
+
+The only gate is the Bearer `API_KEY`, so it must be long and random (`openssl rand -hex 32`, 256-bit). FastAPI's `/docs`, `/redoc` and `/openapi.json` are disabled. Every Funnel request reaches the backend from `127.0.0.1`, so the per-IP command rate limit acts as one global limit, which suits this single-user backend; for the same reason there is no lockout on failed keys (it would lock out the owner too).
+
+One-time setup on the VM:
+
+1. Sign the VM in to the tailnet: `sudo tailscale login`. In the Tailscale admin console, **Disable key expiry** for the machine, or it signs out after 180 days.
+2. Keep the machine name stable: `sudo tailscale set --hostname=hyundai-oci`.
+3. Allow Funnel for the tailnet (the first `tailscale funnel` run prints an enable link if the policy lacks it).
+4. Start it; the setting persists across reboots:
+
+   ```bash
+   sudo tailscale funnel --bg 8000
+   sudo tailscale funnel status
+   ```
+
+5. Leave `BACKEND_BIND_ADDRESS` unset so the API listens on loopback only.
+
+Verify from outside the tailnet (`/status` without the key must return 401):
+
+```bash
+curl https://hyundai-oci.tail75a25a.ts.net/health
+curl -H "Authorization: Bearer $API_KEY" https://hyundai-oci.tail75a25a.ts.net/status
+```
+
+In the iOS app, set the backend URL to `https://hyundai-oci.tail75a25a.ts.net` and leave the Cloudflare Access fields empty. To turn public access off: `sudo tailscale funnel --https=443 off`.
+
+## Cloudflare Tunnel + Access (alternative, needs a domain)
+
+Use this instead of Funnel if you want a second gate (Cloudflare Access) in front of the API key.
+
+The `cloudflared` sidecar opens an outbound-only connection to Cloudflare, so the host needs no inbound ports and the phone needs no VPN. Cloudflare Access sits in front of the tunnel and rejects any request that lacks the app's service token before it reaches FastAPI; the Bearer `API_KEY` remains the second layer.
 
 Cost: Cloudflare Tunnel and Access (Zero Trust free plan, up to 50 users) are free. You need a domain whose DNS is on Cloudflare (any registrar; Cloudflare Registrar sells at cost). The free `trycloudflare.com` quick tunnel is not suitable for the app: its URL changes on every restart and it cannot be protected by Access.
 
@@ -190,7 +221,7 @@ Oracle Cloud's Always Free tier includes an ARM Ampere A1 instance (up to 4 OCPU
 
    Within `SNAPSHOT_INTERVAL_SECONDS` you should see `snapshot collected` (or `snapshot skipped (no change)`) log lines.
 
-8. Set up Cloudflare Tunnel and Access on the VM by following [Cloudflare Tunnel + Access](#cloudflare-tunnel--access). If you already created a tunnel elsewhere, copy its `<UUID>.json` and `config.yml` into `backend/cloudflared/` on the VM; only one host should run a given tunnel.
+8. Expose the API with [Tailscale Funnel](#remote-access-tailscale-funnel-current), or alternatively Cloudflare Tunnel and Access by following [Cloudflare Tunnel + Access](#cloudflare-tunnel--access-alternative-needs-a-domain). If you already created a tunnel elsewhere, copy its `<UUID>.json` and `config.yml` into `backend/cloudflared/` on the VM; only one host should run a given tunnel.
 
 9. Smoke-test from anywhere:
 
@@ -215,7 +246,7 @@ Notes:
 
 - Never commit `.env`.
 - Bluelink credentials stay on the host running this backend.
-- The iOS client only needs the `API_KEY` and the Cloudflare Access service token, not the Bluelink username, password, or PIN.
+- The iOS client only needs the `API_KEY` (plus the Cloudflare Access service token if you use that option), not the Bluelink username, password, or PIN.
 - Bluelink's `client_id`/`client_secret` request headers come from the upstream `hyundai_kia_connect_api` library. They identify the official MyHyundai Canada app, ship inside every copy of it, and are not account secrets; nothing in this repository stores them.
 
 ### Rotating the API key

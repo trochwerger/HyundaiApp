@@ -150,9 +150,11 @@ Done when: `pytest` passes (including new snapshot collector + endpoint tests), 
 
 ---
 
-## Session 4.6 — Remote access via Cloudflare Tunnel + Access ⏳ Pending
+## Session 4.6 — Remote access without the Tailscale VPN ✅ Done
 
 **Status:** Code landed on `task/cloudflare-access` — `8ef3c29` (iOS 26.0 target), `702ed23` (iOS Access token + GET-only retries), `f18061d` (loopback bind + README). pytest (56) and `xcodebuild test` (27, iPhone 17 / iOS 26.5) green. Remaining: the manual Cloudflare setup and cutover below; mark Done after that.
+
+**Outcome (2026-11-09):** Without a domain, the backend is published with **Tailscale Funnel** at `https://hyundai-oci.tail75a25a.ts.net` instead of Cloudflare (Cloudflare Tunnel + Access stays documented as an alternative). API bound to loopback; `/docs`/`/openapi.json` disabled; 256-bit API key verified. Verified from the public internet: `/health` 200, `/status` 401 without key and live data with it, port 8000 closed. Same day: fixed a months-long backend crash loop (login backoff `080662f`, pinned container device identity `a40336e`) and re-verified the Bluelink device via OTP. The `ts.net` ATS exception is removed. Remaining user step: set the app's backend URL to the HTTPS address.
 
 **Goal:** Replace Tailscale-only access with a public HTTPS hostname behind Cloudflare Tunnel, gated by a Cloudflare Access service token in front of the Bearer API key, so the phone needs no VPN.
 
@@ -163,7 +165,7 @@ Done when: `pytest` passes (including new snapshot collector + endpoint tests), 
 
 **Manual steps (user):** domain on Cloudflare, tunnel + Access application per `backend/README.md`, deploy on the OCI VM, pair the app, then drop `BACKEND_BIND_ADDRESS`.
 
-**Done when:** the app works over `https://car.<domain>` with Tailscale off, unauthenticated requests are refused by Access, and pytest + `xcodebuild test` are green. Afterwards remove the `ts.net` ATS exception from `Info.plist` (fold into Session 4.7).
+**Done when:** the app works over `https://car.<domain>` with Tailscale off, unauthenticated requests are refused by Access, and pytest + `xcodebuild test` are green. The `ts.net` ATS exception was removed with the Funnel switch.
 
 ---
 
@@ -183,7 +185,6 @@ Session 4.7 scope: iOS UI only, under `HyundaiApp/`. No backend or networking ch
 - Pull-to-refresh stays cached (`force=false`); the live refresh stays an explicit, labelled action that surfaces the backend's rate-limit message.
 - Use native SwiftUI and SF Symbols with iOS 26 materials (Liquid Glass); no third-party UI libraries and no copied vehicle artwork. Optional: a user-picked car photo stored locally.
 - Polish empty, loading, unpaired and error states; support Dark Mode and Dynamic Type.
-- Remove the `ts.net` NSAppTransportSecurity exception from Info.plist once Session 4.6 cutover is confirmed.
 
 Keep formatting/derivation logic (percent, range, relative time, lock text) in a small pure type with unit tests; views render its output.
 
