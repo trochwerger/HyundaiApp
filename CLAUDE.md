@@ -5,7 +5,7 @@ workspace_mode: solo
 HyundaiApp is a personal Hyundai Tucson PHEV companion. The repository contains:
 
 - `backend/`: a Python 3.11 FastAPI service wrapping the Hyundai Bluelink Canada API. It provides authenticated vehicle status and commands, stores periodic snapshots in SQLite, and can run with Docker Compose and Cloudflare Tunnel.
-- `HyundaiApp/`: an iOS 17+ SwiftUI app. It pairs with the backend, stores credentials in Keychain, persists vehicle history with SwiftData in App Group `group.com.tomas.hyundaiapp`, and exposes the dashboard and remote controls.
+- `HyundaiApp/`: an iOS 26+ SwiftUI app. It pairs with the backend, stores credentials in Keychain, persists vehicle history with SwiftData in App Group `group.com.tomas.hyundaiapp`, and exposes the dashboard and remote controls.
 - `HyundaiApp/HyundaiAppTests/`: deterministic networking and trip-building tests.
 - `SESSIONS.md`: the ordered implementation roadmap. Completed entries are historical records; pending entries are the source of truth for remaining feature scope.
 
@@ -43,10 +43,10 @@ iOS checks, run from the repository root:
 xcodebuild test \
   -project HyundaiApp/HyundaiApp.xcodeproj \
   -scheme HyundaiApp \
-  -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.5'
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5'
 ```
 
-For widget or extension work, also build every affected target/scheme for an iOS 17 simulator. Prefer an installed iOS 17 runtime if the exact example destination is unavailable.
+For widget or extension work, also build every affected target/scheme for an iOS 26 simulator. Prefer an installed iOS 26 runtime if the exact example destination is unavailable. The deployment target is iOS 26.0.
 
 Documentation-only changes require:
 
