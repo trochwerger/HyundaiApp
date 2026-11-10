@@ -218,6 +218,22 @@ Done when: pytest passes and the diff shows no behaviour change for status reads
 
 ---
 
+## Session 4.9 — Remote start status: confirm, show running, Live Activity ⏳ Pending
+
+**Goal:** After a remote start, show whether the car actually started, that the engine is on with time left, and when it ends, in the app and on the Lock Screen / Dynamic Island. The official Hyundai app shows none of this. Mockups: the "Remote Start Status Mockups" canvas (starting, running, Lock Screen + Dynamic Island, didn't start / finished).
+
+**Scope:**
+- Backend: command responses expose the Bluelink `action_id`; new authenticated `GET /actions/{action_id}` returns pending/success/failed/timeout via `check_action_status` (server-side read of `rmtsts`, no wake-up), rate-limited separately from commands.
+- iOS: a pure `RemoteStartTracker` (sending → confirming → running → finished/failed, countdown from the confirmed start and chosen duration, early end when saved status reports the engine off) with unit tests; the active session persists across relaunch.
+- iOS: Car screen cards for starting / running / didn't start / finished. Confirmation is polled every 10 s for at most 2 min; while running and the app is open, saved status (`force=false`) is re-read every 2 min. Stop sends one stop command.
+- iOS: a widget extension with a Live Activity (Lock Screen + Dynamic Island) whose countdown runs on-device with no network; its Stop button opens the app to a confirmation instead of sending a command from the extension.
+
+**Battery safety:** no forced refreshes, no command retries; confirmation polling reads Bluelink's server only. Push updates to the Live Activity (APNs) are out of scope.
+
+**Done when:** pytest and `xcodebuild test` are green, the backend is deployed, and a real remote start on the device shows starting → engine on with countdown (app + Lock Screen) → finished, and a refused start shows the failure state.
+
+---
+
 ## Session 5 — Analytics UI (Swift Charts) ⏳ Pending
 
 **Goal:** Efficiency trends, gas savings, mode-usage breakdown. Pure read-only over existing SwiftData.
