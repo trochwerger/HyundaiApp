@@ -199,7 +199,9 @@ Done when: the dashboard and controls render the redesigned layout against real 
 
 ---
 
-## Session 4.8 — Backend: never re-send vehicle commands at the transport layer ⏳ Pending
+## Session 4.8 — Backend: never re-send vehicle commands at the transport layer ✅ Done
+
+**Status:** Done — commit `ab1b551`. `cf_patch.py` now retries connection errors only for an allowlist of login and read-only Canada endpoints (`v2/login`, `mfa/selverifmeth`, `vhcllst`, `lstvhclsts`, `nxtsvc`, `rmtsts`, `evc/selsoc`, `alerts/maintenance/evTripDetails`); commands, force refresh, PIN, OTP and unknown endpoints are sent once. 20 new tests; pytest 85/85. Deployed to the OCI VM; the rebuild kept the trusted Bluelink device (no OTP) and `/status` over Funnel returned live data.
 
 **Goal:** Close a battery-safety gap: `backend/app/cf_patch.py` wraps the upstream session's `post()` with up to 3 retries on connection errors, and Bluelink commands are POSTs, so a dropped connection after the request left could re-send lock/climate/charge.
 
