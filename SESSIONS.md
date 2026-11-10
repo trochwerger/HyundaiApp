@@ -218,7 +218,9 @@ Done when: pytest passes and the diff shows no behaviour change for status reads
 
 ---
 
-## Session 4.9 — Remote start status: confirm, show running, Live Activity ⏳ Pending
+## Session 4.9 — Remote start status: confirm, show running, Live Activity ✅ Done
+
+**Status:** Done — commits `e5a6303` (backend `action_id` + `GET /actions/{id}`, deployed to the OCI VM) and `beb83fd` (iOS `RemoteStartSession` state machine, Car-screen card, `HyundaiWidgets` Live Activity extension). pytest 95/95, `xcodebuild test` 47/47 on iPhone 17 / iOS 26.5. Verified by the user on device (iPhone 14 Pro, iOS 26.6): a real remote start showed starting → engine on with countdown in the app and on the Lock Screen / Dynamic Island, and Stop from the Live Activity asked for confirmation and ended it. Signing the new extension required accepting Apple's updated Program License Agreement.
 
 **Goal:** After a remote start, show whether the car actually started, that the engine is on with time left, and when it ends, in the app and on the Lock Screen / Dynamic Island. The official Hyundai app shows none of this. Mockups: the "Remote Start Status Mockups" canvas (starting, running, Lock Screen + Dynamic Island, didn't start / finished).
 
