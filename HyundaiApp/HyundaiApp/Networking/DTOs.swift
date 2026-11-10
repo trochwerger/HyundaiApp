@@ -73,6 +73,7 @@ public struct StatusDTO: Codable {
     public let fuelLevel: Int?
     public let isLocked: Bool?
     public let engineIsRunning: Bool?
+    public let airControlIsOn: Bool?
     public let airTemperature: Double?
     public let airTemperatureUnit: String?
     public let outsideTemperature: Double?
@@ -100,6 +101,7 @@ public struct StatusDTO: Codable {
         case fuelLevel = "fuel_level"
         case isLocked = "is_locked"
         case engineIsRunning = "engine_is_running"
+        case airControlIsOn = "air_control_is_on"
         case airTemperature = "air_temperature"
         case airTemperatureUnit = "air_temperature_unit"
         case outsideTemperature = "outside_temperature"
@@ -128,6 +130,7 @@ public struct StatusDTO: Codable {
         fuelLevel: Int? = nil,
         isLocked: Bool? = nil,
         engineIsRunning: Bool? = nil,
+        airControlIsOn: Bool? = nil,
         airTemperature: Double? = nil,
         airTemperatureUnit: String? = nil,
         outsideTemperature: Double? = nil,
@@ -154,6 +157,7 @@ public struct StatusDTO: Codable {
         self.fuelLevel = fuelLevel
         self.isLocked = isLocked
         self.engineIsRunning = engineIsRunning
+        self.airControlIsOn = airControlIsOn
         self.airTemperature = airTemperature
         self.airTemperatureUnit = airTemperatureUnit
         self.outsideTemperature = outsideTemperature
@@ -183,6 +187,7 @@ public struct StatusDTO: Codable {
         fuelLevel = try container.decodeIfPresent(Int.self, forKey: .fuelLevel)
         isLocked = try container.decodeIfPresent(Bool.self, forKey: .isLocked)
         engineIsRunning = try container.decodeIfPresent(Bool.self, forKey: .engineIsRunning)
+        airControlIsOn = try container.decodeIfPresent(Bool.self, forKey: .airControlIsOn)
         airTemperature = try decodeFlexibleDouble(container, forKey: .airTemperature)
         airTemperatureUnit = try container.decodeIfPresent(String.self, forKey: .airTemperatureUnit)
         outsideTemperature = try decodeFlexibleDouble(container, forKey: .outsideTemperature)
@@ -221,6 +226,7 @@ public struct StatusDTO: Codable {
         try container.encodeIfPresent(fuelLevel, forKey: .fuelLevel)
         try container.encodeIfPresent(isLocked, forKey: .isLocked)
         try container.encodeIfPresent(engineIsRunning, forKey: .engineIsRunning)
+        try container.encodeIfPresent(airControlIsOn, forKey: .airControlIsOn)
         try container.encodeIfPresent(airTemperature, forKey: .airTemperature)
         try container.encodeIfPresent(airTemperatureUnit, forKey: .airTemperatureUnit)
         try container.encodeIfPresent(outsideTemperature, forKey: .outsideTemperature)
@@ -232,6 +238,26 @@ public struct StatusDTO: Codable {
 public struct CommandResponseDTO: Codable {
     public let ok: Bool
     public let command: String
+    /// Bluelink transaction id for asking whether the car confirmed the command.
+    public let actionID: String?
+
+    enum CodingKeys: String, CodingKey {
+        case ok
+        case command
+        case actionID = "action_id"
+    }
+}
+
+/// Outcome of a command as recorded by Bluelink.
+public struct ActionStatusDTO: Codable, Equatable {
+    public let actionID: String
+    /// "pending", "success", "failed" or "timeout".
+    public let status: String
+
+    enum CodingKeys: String, CodingKey {
+        case actionID = "action_id"
+        case status
+    }
 }
 
 public struct ClimateStartRequestDTO: Codable {

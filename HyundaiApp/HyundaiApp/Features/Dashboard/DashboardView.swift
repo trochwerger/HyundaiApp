@@ -12,16 +12,19 @@ struct DashboardView: View {
     // The VMs start unbound so previews and tests can instantiate them without SwiftData.
     @StateObject private var vm: DashboardViewModel
     @StateObject private var controls: ControlsViewModel
+    @StateObject private var remoteStart: RemoteStartController
 
     @State private var isPaired = DashboardView.hasPairing() || DashboardView.isSampleMode
     @State private var showClimate = false
     @State private var confirmUnlock = false
     @State private var showChargeOptions = false
+    @State private var confirmStopFromLiveActivity = false
     @State private var dismissTask: Task<Void, Never>?
 
     init(client: CarAPIClient = CarAPIClient()) {
         _vm = StateObject(wrappedValue: DashboardViewModel(client: client))
         _controls = StateObject(wrappedValue: ControlsViewModel(client: client))
+        _remoteStart = StateObject(wrappedValue: RemoteStartController(client: client))
     }
 
     var body: some View {
@@ -51,8 +54,23 @@ struct DashboardView: View {
             Button("Stop charging", role: .destructive) { send(.chargeStop) }
             Button("Cancel", role: .cancel) {}
         }
+        .confirmationDialog("Stop remote start?", isPresented: $confirmStopFromLiveActivity, titleVisibility: .visible) {
+            Button("Stop", role: .destructive) { send(.stopClimate) }
+            Button("Keep running", role: .cancel) {}
+        }
         .onChange(of: controls.lastResult) { _, newValue in
             scheduleBannerDismiss(newValue)
+        }
+        .onChange(of: vm.lastRefresh) { _, _ in
+            remoteStart.statusUpdated(vm.status)
+            remoteStart.vehicleName = VehicleStatusPresentation.title(for: vm.status)
+        }
+        .onOpenURL { url in
+            // The Live Activity's Stop button opens the app here; the stop
+            // itself still needs the user's confirmation.
+            if url == RemoteStartActivityAttributes.stopURL, remoteStart.session?.isActive == true {
+                confirmStopFromLiveActivity = true
+            }
         }
         .onAppear {
             guard !Self.isSampleMode else { return }
@@ -71,6 +89,7 @@ struct DashboardView: View {
             }
             #endif
             vm.configure(context: modelContext)
+            remoteStart.refreshSavedStatus = { [vm] in await vm.refresh(force: false) }
             if isPaired {
                 await vm.refresh(force: false)
             }
@@ -123,6 +142,20 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header(p)
+                if let session = remoteStart.session {
+                    RemoteStartCard(
+                        session: session,
+                        isLocked: vm.status?.isLocked,
+                        isStopping: controls.busy == .stopClimate,
+                        onStop: { send(.stopClimate) },
+                        onRetry: {
+                            remoteStart.dismiss()
+                            showClimate = true
+                        },
+                        onDismiss: { remoteStart.dismiss() }
+                    )
+                }
+
                 heroCard(p)
 
                 if case .error(let message) = vm.loadState {
@@ -328,11 +361,26 @@ struct DashboardView: View {
 
     /// Sends a command once. On success, re-reads the cached status (no wake-up).
     private func send(_ command: ControlsViewModel.Command) {
+        let batteryBefore = vm.status?.evBatteryPercentage
         Task {
-            await controls.perform(command)
-            if case .success = controls.lastResult {
-                await vm.refresh(force: false)
+            let response = await controls.perform(command)
+            guard case .success = controls.lastResult else { return }
+
+            switch command {
+            case .startClimate:
+                remoteStart.began(
+                    response: response,
+                    durationMinutes: controls.startDuration,
+                    temperature: controls.startTemp,
+                    defrost: controls.defrost,
+                    batteryPercent: batteryBefore
+                )
+            case .stopClimate:
+                remoteStart.stopped()
+            default:
+                break
             }
+            await vm.refresh(force: false)
         }
     }
 

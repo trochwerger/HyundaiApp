@@ -119,6 +119,12 @@ public final class CarAPIClient {
         return try await send(request, decodeAs: CommandResponseDTO.self)
     }
 
+    /// Asks whether the car confirmed a command. Reads Bluelink's server only.
+    public func actionStatus(id: String) async throws -> ActionStatusDTO {
+        let request = try makeRequest(path: "/actions/\(id)", method: "GET", requiresAuth: true)
+        return try await send(request, decodeAs: ActionStatusDTO.self)
+    }
+
     public static func normalizedBaseURL(from rawValue: String) -> URL? {
         let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let url = URL(string: trimmed) else {

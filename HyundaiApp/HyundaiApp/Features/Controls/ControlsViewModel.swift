@@ -68,9 +68,9 @@ final class ControlsViewModel: ObservableObject {
             case .unlock:
                 return "Vehicle unlocked."
             case .startClimate:
-                return "Remote start sent."
+                return "Remote start sent. Waiting for the car…"
             case .stopClimate:
-                return "Climate stop sent."
+                return "Remote start stopped."
             case .chargeStart:
                 return "Charging start sent."
             case .chargeStop:
@@ -96,29 +96,35 @@ final class ControlsViewModel: ObservableObject {
         self.client = client
     }
 
-    func perform(_ command: Command) async {
+    /// Sends a command once (never retried) and returns the backend's
+    /// response on success.
+    @discardableResult
+    func perform(_ command: Command) async -> CommandResponseDTO? {
         busy = command
         defer { busy = nil }
 
         do {
+            let response: CommandResponseDTO
             switch command {
             case .lock:
-                _ = try await client.lock()
+                response = try await client.lock()
             case .unlock:
-                _ = try await client.unlock()
+                response = try await client.unlock()
             case .startClimate:
-                _ = try await client.startClimate(temp: startTemp, defrost: defrost, duration: startDuration)
+                response = try await client.startClimate(temp: startTemp, defrost: defrost, duration: startDuration)
             case .stopClimate:
-                _ = try await client.stopClimate()
+                response = try await client.stopClimate()
             case .chargeStart:
-                _ = try await client.chargeStart()
+                response = try await client.chargeStart()
             case .chargeStop:
-                _ = try await client.chargeStop()
+                response = try await client.chargeStop()
             }
 
             lastResult = .success(command.successMessage)
+            return response
         } catch {
             lastResult = .failure(error.localizedDescription)
+            return nil
         }
     }
 

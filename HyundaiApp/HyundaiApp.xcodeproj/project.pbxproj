@@ -33,6 +33,16 @@
 		A10000000000000000000105 /* ClimateSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000104 /* ClimateSheet.swift */; };
 		A10000000000000000000107 /* CommandStatusBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000106 /* CommandStatusBanner.swift */; };
 		A10000000000000000000109 /* VehicleStatusPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000108 /* VehicleStatusPresentationTests.swift */; };
+		A10000000000000000000207 /* RemoteStartSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000200 /* RemoteStartSession.swift */; };
+		A10000000000000000000208 /* RemoteStartActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000201 /* RemoteStartActivityAttributes.swift */; };
+		A10000000000000000000209 /* RemoteStartController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000203 /* RemoteStartController.swift */; };
+		A1000000000000000000020A /* RemoteStartCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000204 /* RemoteStartCard.swift */; };
+		A1000000000000000000020B /* RemoteStartLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000205 /* RemoteStartLiveActivity.swift */; };
+		A1000000000000000000020D /* RemoteStartSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000020C /* RemoteStartSessionTests.swift */; };
+		A10000000000000000000216 /* HyundaiWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000020E /* HyundaiWidgetsBundle.swift */; };
+		A10000000000000000000217 /* RemoteStartLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000020F /* RemoteStartLiveActivityWidget.swift */; };
+		A10000000000000000000218 /* RemoteStartActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000201 /* RemoteStartActivityAttributes.swift */; };
+		A1000000000000000000021D /* HyundaiWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000212 /* HyundaiWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -43,7 +53,28 @@
 			remoteGlobalIDString = A10000000000000000000033;
 			remoteInfo = HyundaiApp;
 		};
+		A1000000000000000000021F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000035 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1000000000000000000021C;
+			remoteInfo = HyundaiWidgets;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A1000000000000000000021E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A1000000000000000000021D /* HyundaiWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A10000000000000000000011 /* HyundaiApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HyundaiApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -77,6 +108,16 @@
 		A10000000000000000000104 /* ClimateSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClimateSheet.swift; sourceTree = "<group>"; };
 		A10000000000000000000106 /* CommandStatusBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandStatusBanner.swift; sourceTree = "<group>"; };
 		A10000000000000000000108 /* VehicleStatusPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleStatusPresentationTests.swift; sourceTree = "<group>"; };
+		A10000000000000000000200 /* RemoteStartSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStartSession.swift; sourceTree = "<group>"; };
+		A10000000000000000000201 /* RemoteStartActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStartActivityAttributes.swift; sourceTree = "<group>"; };
+		A10000000000000000000203 /* RemoteStartController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStartController.swift; sourceTree = "<group>"; };
+		A10000000000000000000204 /* RemoteStartCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStartCard.swift; sourceTree = "<group>"; };
+		A10000000000000000000205 /* RemoteStartLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStartLiveActivity.swift; sourceTree = "<group>"; };
+		A1000000000000000000020C /* RemoteStartSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStartSessionTests.swift; sourceTree = "<group>"; };
+		A1000000000000000000020E /* HyundaiWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HyundaiWidgetsBundle.swift; sourceTree = "<group>"; };
+		A1000000000000000000020F /* RemoteStartLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStartLiveActivityWidget.swift; sourceTree = "<group>"; };
+		A10000000000000000000210 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000000000000000000212 /* HyundaiWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HyundaiWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,6 +135,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000214 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -102,6 +150,7 @@
 			children = (
 				A10000000000000000000028 /* HyundaiApp */,
 				A10000000000000000000031 /* HyundaiAppTests */,
+				A10000000000000000000211 /* HyundaiWidgets */,
 				A10000000000000000000032 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -109,6 +158,7 @@
 		A10000000000000000000028 /* HyundaiApp */ = {
 			isa = PBXGroup;
 			children = (
+				A10000000000000000000202 /* Shared */,
 				A10000000000000000000029 /* App */,
 				A1000000000000000000002A /* Networking */,
 				A1000000000000000000002B /* Models */,
@@ -141,6 +191,7 @@
 		A1000000000000000000002B /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				A10000000000000000000200 /* RemoteStartSession.swift */,
 				A1000000000000000000004C /* PersistenceController.swift */,
 				A1000000000000000000004D /* StatusSnapshot.swift */,
 				A1000000000000000000004E /* Trip.swift */,
@@ -153,6 +204,7 @@
 		A1000000000000000000002C /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				A10000000000000000000206 /* RemoteStart */,
 				A1000000000000000000002D /* Dashboard */,
 				A1000000000000000000002E /* Controls */,
 				A1000000000000000000002F /* Settings */,
@@ -204,6 +256,7 @@
 		A10000000000000000000031 /* HyundaiAppTests */ = {
 			isa = PBXGroup;
 			children = (
+				A1000000000000000000020C /* RemoteStartSessionTests.swift */,
 				A10000000000000000000022 /* CarAPIClientTests.swift */,
 				A10000000000000000000023 /* MockURLProtocol.swift */,
 				A10000000000000000000052 /* TripBuilderTests.swift */,
@@ -216,6 +269,7 @@
 		A10000000000000000000032 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				A10000000000000000000212 /* HyundaiWidgets.appex */,
 				A10000000000000000000011 /* HyundaiApp.app */,
 				A10000000000000000000012 /* HyundaiAppTests.xctest */,
 			);
@@ -230,6 +284,34 @@
 			path = Debug;
 			sourceTree = "<group>";
 		};
+		A10000000000000000000202 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000201 /* RemoteStartActivityAttributes.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000206 /* RemoteStart */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000203 /* RemoteStartController.swift */,
+				A10000000000000000000204 /* RemoteStartCard.swift */,
+				A10000000000000000000205 /* RemoteStartLiveActivity.swift */,
+			);
+			path = RemoteStart;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000211 /* HyundaiWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				A1000000000000000000020E /* HyundaiWidgetsBundle.swift */,
+				A1000000000000000000020F /* RemoteStartLiveActivityWidget.swift */,
+				A10000000000000000000210 /* Info.plist */,
+			);
+			path = HyundaiWidgets;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -240,10 +322,12 @@
 				A10000000000000000000025 /* Frameworks */,
 				A10000000000000000000038 /* Sources */,
 				A10000000000000000000036 /* Resources */,
+				A1000000000000000000021E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A10000000000000000000220 /* PBXTargetDependency */,
 			);
 			name = HyundaiApp;
 			productName = HyundaiApp;
@@ -267,6 +351,23 @@
 			productReference = A10000000000000000000012 /* HyundaiAppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		A1000000000000000000021C /* HyundaiWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000000000000000000021B /* Build configuration list for PBXNativeTarget "HyundaiWidgets" */;
+			buildPhases = (
+				A10000000000000000000213 /* Sources */,
+				A10000000000000000000214 /* Frameworks */,
+				A10000000000000000000215 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = HyundaiWidgets;
+			productName = HyundaiWidgets;
+			productReference = A10000000000000000000212 /* HyundaiWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -282,6 +383,9 @@
 					A10000000000000000000034 = {
 						CreatedOnToolsVersion = 26.3;
 						TestTargetID = A10000000000000000000033;
+					};
+					A1000000000000000000021C = {
+						CreatedOnToolsVersion = 26.3;
 					};
 				};
 			};
@@ -300,6 +404,7 @@
 			targets = (
 				A10000000000000000000033 /* HyundaiApp */,
 				A10000000000000000000034 /* HyundaiAppTests */,
+				A1000000000000000000021C /* HyundaiWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -313,6 +418,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000215 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -320,6 +432,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000207 /* RemoteStartSession.swift in Sources */,
+				A10000000000000000000208 /* RemoteStartActivityAttributes.swift in Sources */,
+				A10000000000000000000209 /* RemoteStartController.swift in Sources */,
+				A1000000000000000000020A /* RemoteStartCard.swift in Sources */,
+				A1000000000000000000020B /* RemoteStartLiveActivity.swift in Sources */,
 				A10000000000000000000001 /* HyundaiAppApp.swift in Sources */,
 				A10000000000000000000002 /* RootView.swift in Sources */,
 				A10000000000000000000003 /* CarAPIClient.swift in Sources */,
@@ -348,10 +465,21 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1000000000000000000020D /* RemoteStartSessionTests.swift in Sources */,
 				A1000000000000000000000E /* CarAPIClientTests.swift in Sources */,
 				A1000000000000000000000F /* MockURLProtocol.swift in Sources */,
 				A1000000000000000000004B /* TripBuilderTests.swift in Sources */,
 				A10000000000000000000109 /* VehicleStatusPresentationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000213 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000216 /* HyundaiWidgetsBundle.swift in Sources */,
+				A10000000000000000000217 /* RemoteStartLiveActivityWidget.swift in Sources */,
+				A10000000000000000000218 /* RemoteStartActivityAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -362,6 +490,11 @@
 			isa = PBXTargetDependency;
 			target = A10000000000000000000033 /* HyundaiApp */;
 			targetProxy = A10000000000000000000043 /* PBXContainerItemProxy */;
+		};
+		A10000000000000000000220 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1000000000000000000021C /* HyundaiWidgets */;
+			targetProxy = A1000000000000000000021F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -499,6 +632,54 @@
 			};
 			name = Release;
 		};
+		A10000000000000000000219 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = P5WCWGKZYQ;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HyundaiWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tomas.hyundaiapp.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A1000000000000000000021A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = P5WCWGKZYQ;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HyundaiWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tomas.hyundaiapp.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -525,6 +706,15 @@
 			buildConfigurations = (
 				A1000000000000000000003E /* Debug */,
 				A1000000000000000000003F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1000000000000000000021B /* Build configuration list for PBXNativeTarget "HyundaiWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000219 /* Debug */,
+				A1000000000000000000021A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
