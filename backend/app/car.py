@@ -315,7 +315,36 @@ class CarService:
         response: dict[str, Any] = {"ok": True, "command": command_name}
         if result is not None:
             response["result"] = self._json_safe(result)
+            # Bluelink returns the transaction id as a plain string; expose it
+            # under a stable name so clients can ask for the command's outcome.
+            if isinstance(result, str) and result:
+                response["action_id"] = result
         return self._prune_none(response)
+
+    def get_action_status(self, action_id: str) -> dict[str, Any]:
+        """Report whether the car confirmed a command.
+
+        Reads Bluelink's record of the transaction (`rmtsts`); this does not
+        contact the vehicle and never re-sends the command.
+        """
+
+        self._ensure_ready()
+        try:
+            result = self._vehicle_manager.check_action_status(
+                self._get_vehicle_id(), action_id, synchronous=False
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail={
+                    "error": "upstream_error",
+                    "message": str(exc),
+                    "type": exc.__class__.__name__,
+                },
+            ) from exc
+
+        value = getattr(result, "value", result)
+        return {"action_id": action_id, "status": str(value).lower()}
 
     def _next_month(self, value: dt.date) -> dt.date:
         if value.month == 12:

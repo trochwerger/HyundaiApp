@@ -13,6 +13,7 @@ from .car import CarService
 from .config import Settings
 from .login_guard import LoginUnavailable
 from .rate_limit import FixedWindowRateLimiter
+from .routes.actions import router as actions_router
 from .routes.commands import router as commands_router
 from .routes.health import router as health_router
 from .routes.snapshots import router as snapshots_router
@@ -105,6 +106,7 @@ def create_app(
     app.include_router(status_router)
     app.include_router(snapshots_router)
     app.include_router(commands_router)
+    app.include_router(actions_router)
     app.include_router(trips_router)
     return app
 

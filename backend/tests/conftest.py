@@ -59,6 +59,7 @@ class FakeCarService:
         self.force_rate_limited = False
         self.calls: list[tuple[str, dict]] = []
         self.raise_upstream: str | None = None
+        self.action_status = "pending"
 
     def get_vehicle_metadata(self) -> dict:
         return self.metadata
@@ -125,6 +126,10 @@ class FakeCarService:
             "to": to_date.isoformat(),
             "trips": [],
         }
+
+    def get_action_status(self, action_id: str) -> dict:
+        self.calls.append(("action_status", {"action_id": action_id}))
+        return {"action_id": action_id, "status": self.action_status}
 
     def _command(self, command: str, **kwargs) -> dict:
         if self.raise_upstream == command:
